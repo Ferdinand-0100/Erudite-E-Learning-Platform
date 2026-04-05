@@ -16,7 +16,7 @@ export default function ComputerSection() {
     <div style={styles.page}>
       <PageHeader title="Computer" breadcrumb="Courses › Computer" />
       <Tabs basePath="/computer" tabs={TABS} />
-      <Outlet />
+      <Outlet context={{ courseKey: 'computer' }} />
     </div>
   )
 }

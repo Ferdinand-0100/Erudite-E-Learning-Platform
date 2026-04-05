@@ -22,5 +22,8 @@ export default function MandarinSection() {
 }
 
 const styles = {
-  page: { padding: '28px 32px', maxWidth: '860px' },
+  page: {
+    padding: '28px 32px',
+    maxWidth: '860px',
+  },
 }

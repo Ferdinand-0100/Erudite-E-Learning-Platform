@@ -8,7 +8,19 @@ export default function PageHeader({ title, breadcrumb }) {
 }
 
 const styles = {
-  header: { marginBottom: '24px' },
-  breadcrumb: { fontSize: '12px', color: 'var(--color-text-3)', marginBottom: '4px' },
-  title: { fontSize: '20px', fontWeight: 600, letterSpacing: '-0.3px' },
+  header: {
+    marginBottom: '28px'
+  },
+
+  breadcrumb: {
+    fontSize: '12px',
+    color: 'var(--color-text-3)',
+    marginBottom: '6px'
+  },
+
+  title: {
+    fontSize: '24px',
+    fontWeight: 600,
+    letterSpacing: '-0.4px'
+  }
 }
