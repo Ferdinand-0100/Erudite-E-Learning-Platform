@@ -8,12 +8,14 @@ export default function MaterialsList({ courseKey }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('Fetching materials for courseKey:', courseKey)
     supabase
       .from('materials')
       .select('*')
       .eq('course_key', courseKey)
       .order('sort_order')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        console.log('Materials data:', data, 'error:', error)
         setMaterials(data || [])
         setLoading(false)
       })

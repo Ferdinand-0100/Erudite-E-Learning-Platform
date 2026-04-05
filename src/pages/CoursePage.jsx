@@ -22,7 +22,7 @@ export default function CoursePage({ course }) {
   } else {
     // For mandarin/computer the :tab param is in the "section" slot
     courseKey = course
-    activeTab = section
+    activeTab = tab
   }
 
   if (!activeTab) return null
