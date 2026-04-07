@@ -9,7 +9,7 @@ export default function PageHeader({ title, breadcrumb }) {
 
 const styles = {
   header: {
-    marginBottom: '28px'
+    marginBottom: '20px'
   },
 
   breadcrumb: {

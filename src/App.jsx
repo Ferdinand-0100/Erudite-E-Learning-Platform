@@ -1,11 +1,9 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import Home from './pages/Home'
-import EnglishSection from './pages/English'
-import MandarinSection from './pages/Mandarin'
-import ComputerSection from './pages/Computer'
+import CourseShell from './pages/CourseShell'
 import CoursePage from './pages/CoursePage'
 
 function ProtectedRoute({ children }) {
@@ -13,6 +11,33 @@ function ProtectedRoute({ children }) {
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-3)' }}>Loading…</div>
   if (!user) return <Navigate to="/login" replace />
   return children
+}
+
+// Backward-compat redirect components
+
+function MandarinTabRedirect() {
+  const { tab } = useParams()
+  return <Navigate to={`/mandarin/GM/hsk1/${tab}`} replace />
+}
+
+function ComputerTabRedirect() {
+  const { tab } = useParams()
+  return <Navigate to={`/computer/IOT/beginner/${tab}`} replace />
+}
+
+function EnglishGETTabRedirect() {
+  const { tab } = useParams()
+  return <Navigate to={`/english/GET/beginner/${tab}`} replace />
+}
+
+function EnglishIELTSTabRedirect() {
+  const { tab } = useParams()
+  return <Navigate to={`/english/IELTS/band4/${tab}`} replace />
+}
+
+function EnglishPTETabRedirect() {
+  const { tab } = useParams()
+  return <Navigate to={`/english/PTE/pte_core/${tab}`} replace />
 }
 
 export default function App() {
@@ -28,14 +53,17 @@ export default function App() {
         }
       >
         <Route index element={<Home />} />
-        <Route path="english" element={<EnglishSection />}>
-          <Route path=":section/:tab" element={<CoursePage course="english" />} />
-        </Route>
-        <Route path="mandarin" element={<MandarinSection />}>
-          <Route path=":tab" element={<CoursePage course="mandarin" />} />
-        </Route>
-        <Route path="computer" element={<ComputerSection />}>
-          <Route path=":tab" element={<CoursePage course="computer" />} />
+
+        {/* Backward-compat redirects — must come before the generic :course route */}
+        <Route path="mandarin/:tab" element={<MandarinTabRedirect />} />
+        <Route path="computer/:tab" element={<ComputerTabRedirect />} />
+        <Route path="english/GET/:tab" element={<EnglishGETTabRedirect />} />
+        <Route path="english/IELTS/:tab" element={<EnglishIELTSTabRedirect />} />
+        <Route path="english/PTE/:tab" element={<EnglishPTETabRedirect />} />
+
+        {/* Generic 4-level route for all courses */}
+        <Route path=":course" element={<CourseShell />}>
+          <Route path=":subclass/:level/:tab" element={<CoursePage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

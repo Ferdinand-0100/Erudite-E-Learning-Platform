@@ -10,8 +10,8 @@
   --color-border: rgba(0,0,0,0.08);
   --color-border-strong: rgba(0,0,0,0.15);
   --color-text: #1a1918;
-  --color-text-2: #5a5855;
-  --color-text-3: #9a9895;
+  --color-text-2: #000000;
+  --color-text-3: #1b1b1bc0;
   --color-accent: #2563eb;
   --color-accent-hover: #1d4ed8;
   --color-accent-fg: #ffffff;
@@ -47,8 +47,8 @@
    ───────────────────────────────────────────────────────────────────────── */
 :root {
   --bg-image: url('/images/HeroBackground.jpeg'); /* ← swap this path */
-  --bg-overlay-color: rgba(245, 244, 241, 0.82); /* matches --color-bg */
-  --bg-grid-color: rgba(0, 0, 0, 0.07);
+  --bg-overlay-color: linear-gradient(90deg,rgba(42, 123, 155, 1) 0%, rgba(87, 199, 134, 0.473) 50%, rgba(237, 221, 83, 0.219) 100%); /* matches --color-bg */
+  --bg-grid-color: rgba(255, 255, 255, 0.192);
   --bg-grid-size: 32px;
 }
 

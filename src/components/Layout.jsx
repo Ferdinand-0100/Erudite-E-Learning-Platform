@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
 import styles from './Layout.module.css'
-
-const ENGLISH_SECTIONS = ['GET', 'IELTS', 'PTE']
-const SUB_TABS = ['videos', 'materials', 'quiz']
 
 function ChevronIcon({ open }) {
   return (
@@ -34,16 +32,12 @@ export default function Layout() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  const [openMenus, setOpenMenus] = useState({
-    english: false,
-    mandarin: false,
-    computer: false
-  })
+  const [openMenus, setOpenMenus] = useState(
+    Object.fromEntries(Object.keys(COURSE_CONFIG).map(k => [k, false]))
+  )
 
   const toggle = key =>
     setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }))
-
-  const isActive = path => location.pathname.startsWith(path)
 
   const displayName =
     user?.user_metadata?.full_name ||
@@ -91,132 +85,96 @@ export default function Layout() {
 
           <div className={styles.sectionLabel}>Courses</div>
 
-          {/* English */}
-          <div
-            className={`${styles.navItem} ${isActive('/english') ? styles.active : ''}`}
-            onClick={() => {
-              toggle('english')
-              if (!isActive('/english')) navigate('/english/GET/videos')
-              setIsSidebarOpen(false)
-            }}
-          >
-            <span className={styles.courseIcon}>A</span>
-            <span>English</span>
-            <ChevronIcon open={openMenus.english || isActive('/english')} />
-          </div>
+          {Object.entries(COURSE_CONFIG).map(([courseKey, course]) => {
+            const courseActive = location.pathname.startsWith(`/${courseKey}`)
+            const courseExpanded = openMenus[courseKey] || courseActive
 
-          {(openMenus.english || isActive('/english')) && (
-            <div className={styles.submenu}>
-              {ENGLISH_SECTIONS.map(sec => (
-                <div key={sec}>
-
-                  <NavLink
-                    to={`/english/${sec}/videos`}
-                    className={({ isActive }) =>
-                      `${styles.subItem} ${
-                        isActive || location.pathname.includes(`/english/${sec}`)
-                          ? styles.subActive
-                          : ''
-                      }`
-                    }
-                    onClick={() => setIsSidebarOpen(false)}
-                  >
-                    {sec}
-                  </NavLink>
-
-                  {location.pathname.includes(`/english/${sec}`) && (
-                    <div className={styles.subSubmenu}>
-                      {SUB_TABS.map(tab => (
-                        <NavLink
-                          key={tab}
-                          to={`/english/${sec}/${tab}`}
-                          className={({ isActive }) =>
-                            `${styles.subSubItem} ${
-                              isActive ? styles.subSubActive : ''
-                            }`
-                          }
-                          onClick={() => setIsSidebarOpen(false)}
-                        >
-                          {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-
+            return (
+              <div key={courseKey}>
+                {/* Level 1 — Course */}
+                <div
+                  className={`${styles.navItem} ${courseActive ? styles.active : ''}`}
+                  onClick={() => {
+                    toggle(courseKey)
+                    navigate(defaultPath(courseKey))
+                    setIsSidebarOpen(false)
+                  }}
+                >
+                  <span className={styles.courseIcon}>{course.icon}</span>
+                  <span>{course.label}</span>
+                  <ChevronIcon open={courseExpanded} />
                 </div>
-              ))}
-            </div>
-          )}
 
-          {/* Mandarin */}
-          <div
-            className={`${styles.navItem} ${isActive('/mandarin') ? styles.active : ''}`}
-            onClick={() => {
-              toggle('mandarin')
-              if (!isActive('/mandarin')) navigate('/mandarin/videos')
-              setIsSidebarOpen(false)
-            }}
-          >
-            <span className={styles.courseIcon}>文</span>
-            <span>Mandarin</span>
-            <ChevronIcon open={openMenus.mandarin || isActive('/mandarin')} />
-          </div>
+                {courseExpanded && (
+                  <div className={styles.submenu}>
+                    {Object.entries(course.subclasses).map(([subclassKey, subclass]) => {
+                      const subclassActive = location.pathname.includes(`/${courseKey}/${subclassKey}`)
 
-          {(openMenus.mandarin || isActive('/mandarin')) && (
-            <div className={styles.submenu}>
-              {SUB_TABS.map(tab => (
-                <NavLink
-                  key={tab}
-                  to={`/mandarin/${tab}`}
-                  className={({ isActive }) =>
-                    `${styles.subItem} ${isActive ? styles.subActive : ''}`
-                  }
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  {tab === 'videos'
-                    ? 'Tutorial videos'
-                    : tab === 'materials'
-                    ? 'Written materials'
-                    : 'Quiz system'}
-                </NavLink>
-              ))}
-            </div>
-          )}
+                      return (
+                        <div key={subclassKey}>
+                          {/* Level 2 — Subclass */}
+                          <div
+                            className={`${styles.subItem} ${subclassActive ? styles.subActive : ''}`}
+                            onClick={() => {
+                              navigate(defaultSubclassPath(courseKey, subclassKey))
+                              setIsSidebarOpen(false)
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {subclass.label}
+                          </div>
 
-          {/* Computer */}
-          <div
-            className={`${styles.navItem} ${isActive('/computer') ? styles.active : ''}`}
-            onClick={() => {
-              toggle('computer')
-              if (!isActive('/computer')) navigate('/computer/videos')
-              setIsSidebarOpen(false)
-            }}
-          >
-            <span className={styles.courseIcon}>⌨</span>
-            <span>Computer</span>
-            <ChevronIcon open={openMenus.computer || isActive('/computer')} />
-          </div>
+                          {subclassActive && (
+                            <div className={styles.subSubmenu}>
+                              {subclass.levels.map(level => {
+                                const levelActive = location.pathname.includes(
+                                  `/${courseKey}/${subclassKey}/${level.key}`
+                                )
 
-          {(openMenus.computer || isActive('/computer')) && (
-            <div className={styles.submenu}>
-              {SUB_TABS.map(tab => (
-                <NavLink
-                  key={tab}
-                  to={`/computer/${tab}`}
-                  className={({ isActive }) =>
-                    `${styles.subItem} ${isActive ? styles.subActive : ''}`
-                  }
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  {tab === 'videos'
-                    ? 'Tutorial videos'
-                    : tab === 'materials'
-                    ? 'Written materials'
-                    : 'Quiz system'}
-                </NavLink>
-              ))}
-            </div>
-          )}
+                                return (
+                                  <div key={level.key}>
+                                    {/* Level 3 — Level */}
+                                    <div
+                                      className={`${styles.subSubItem} ${levelActive ? styles.subSubActive : ''}`}
+                                      onClick={() => {
+                                        navigate(`/${courseKey}/${subclassKey}/${level.key}/videos`)
+                                        setIsSidebarOpen(false)
+                                      }}
+                                      style={{ cursor: 'pointer' }}
+                                    >
+                                      {level.label}
+                                    </div>
+
+                                    {levelActive && (
+                                      <div>
+                                        {/* Level 4 — Tab links */}
+                                        {['videos', 'materials', 'quiz'].map(tab => (
+                                          <NavLink
+                                            key={tab}
+                                            to={`/${courseKey}/${subclassKey}/${level.key}/${tab}`}
+                                            className={({ isActive }) =>
+                                              `${styles.tabItem} ${isActive ? styles.subSubActive : ''}`
+                                            }
+                                            onClick={() => setIsSidebarOpen(false)}
+                                          >
+                                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                          </NavLink>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
 
         </nav>
 

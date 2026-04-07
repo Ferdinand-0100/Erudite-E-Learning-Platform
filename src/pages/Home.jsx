@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 
 const COURSES = [
-  { key: 'english', label: 'English', icon: '📖', desc: 'GET · IELTS · PTE', path: '/english/GET/videos', progress: 45 },
-  { key: 'mandarin', label: 'Mandarin', icon: '🀄', desc: 'Videos · Materials · Quiz', path: '/mandarin/videos', progress: 20 },
-  { key: 'computer', label: 'Computer', icon: '💻', desc: 'Videos · Materials · Quiz', path: '/computer/videos', progress: 62 },
+  { key: 'english', label: 'English', icon: '📖', desc: 'GET · IELTS · PTE', path: '/english/GET/beginner/videos', progress: 45 },
+  { key: 'mandarin', label: 'Mandarin', icon: '🀄', desc: 'GM · HSK · TOCFL', path: '/mandarin/GM/hsk1/videos', progress: 20 },
+  { key: 'computer', label: 'Computer', icon: '💻', desc: 'IOT · 3D Design · Web · Desktop · Mobile · Database', path: '/computer/IOT/beginner/videos', progress: 62 },
 ]
 
 export default function Home() {
@@ -72,7 +72,7 @@ export default function Home() {
 }
 
 const styles = {
-  page: { padding: '28px 32px', maxWidth: '860px' },
+  page: { padding: '34px 32px', maxWidth: '860px' },
   banner: {
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
