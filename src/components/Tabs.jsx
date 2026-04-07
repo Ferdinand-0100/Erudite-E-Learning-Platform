@@ -45,7 +45,7 @@ const styles = {
 
   tabActive: {
     color: 'var(--color-text)',
-    borderBottom: '2px solid var(--color-text)',
+    borderBottom: '2px solid var(--color-accent)',
     fontWeight: 500
   }
 }

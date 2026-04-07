@@ -207,15 +207,15 @@ const styles = {
   },
 
   correct: {
-    border: '1px solid #22c55e',
-    background: '#ecfdf5',
-    color: '#166534'
+    border: '1px solid var(--color-success)',
+    background: 'var(--color-success-bg)',
+    color: 'var(--color-success)',
   },
 
   wrong: {
-    border: '1px solid #ef4444',
-    background: '#fef2f2',
-    color: '#991b1b'
+    border: '1px solid var(--color-danger)',
+    background: 'var(--color-danger-bg)',
+    color: 'var(--color-danger)',
   },
 
   letter: {

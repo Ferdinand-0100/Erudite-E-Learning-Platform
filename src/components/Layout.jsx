@@ -32,6 +32,8 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
   const [openMenus, setOpenMenus] = useState({
     english: false,
     mandarin: false,
@@ -64,7 +66,7 @@ export default function Layout() {
     <div className={styles.shell}>
 
       {/* SIDEBAR */}
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ''}`}>
 
         {/* Logo */}
         <div className={styles.logo}>
@@ -81,6 +83,7 @@ export default function Layout() {
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.active : ''}`
             }
+            onClick={() => setIsSidebarOpen(false)}
           >
             <HomeIcon />
             <span>Home</span>
@@ -94,6 +97,7 @@ export default function Layout() {
             onClick={() => {
               toggle('english')
               if (!isActive('/english')) navigate('/english/GET/videos')
+              setIsSidebarOpen(false)
             }}
           >
             <span className={styles.courseIcon}>A</span>
@@ -115,6 +119,7 @@ export default function Layout() {
                           : ''
                       }`
                     }
+                    onClick={() => setIsSidebarOpen(false)}
                   >
                     {sec}
                   </NavLink>
@@ -130,6 +135,7 @@ export default function Layout() {
                               isActive ? styles.subSubActive : ''
                             }`
                           }
+                          onClick={() => setIsSidebarOpen(false)}
                         >
                           {tab.charAt(0).toUpperCase() + tab.slice(1)}
                         </NavLink>
@@ -148,6 +154,7 @@ export default function Layout() {
             onClick={() => {
               toggle('mandarin')
               if (!isActive('/mandarin')) navigate('/mandarin/videos')
+              setIsSidebarOpen(false)
             }}
           >
             <span className={styles.courseIcon}>文</span>
@@ -164,6 +171,7 @@ export default function Layout() {
                   className={({ isActive }) =>
                     `${styles.subItem} ${isActive ? styles.subActive : ''}`
                   }
+                  onClick={() => setIsSidebarOpen(false)}
                 >
                   {tab === 'videos'
                     ? 'Tutorial videos'
@@ -181,6 +189,7 @@ export default function Layout() {
             onClick={() => {
               toggle('computer')
               if (!isActive('/computer')) navigate('/computer/videos')
+              setIsSidebarOpen(false)
             }}
           >
             <span className={styles.courseIcon}>⌨</span>
@@ -197,6 +206,7 @@ export default function Layout() {
                   className={({ isActive }) =>
                     `${styles.subItem} ${isActive ? styles.subActive : ''}`
                   }
+                  onClick={() => setIsSidebarOpen(false)}
                 >
                   {tab === 'videos'
                     ? 'Tutorial videos'
@@ -233,8 +243,28 @@ export default function Layout() {
 
       </aside>
 
+      {/* OVERLAY (mobile) */}
+      {isSidebarOpen && (
+        <div
+          className={styles.overlay}
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* MAIN CONTENT */}
       <main className={styles.main}>
+        {/* Hamburger (mobile only) */}
+        <button
+          className={styles.hamburger}
+          onClick={() => setIsSidebarOpen(prev => !prev)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={isSidebarOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
         <Outlet />
       </main>
 

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 
@@ -10,6 +11,7 @@ const COURSES = [
 export default function Home() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [hoveredCard, setHoveredCard] = useState(null)
   const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student'
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -24,7 +26,19 @@ export default function Home() {
       <h2 style={styles.sectionHeading}>Your courses</h2>
       <div style={styles.courseGrid}>
         {COURSES.map(c => (
-          <div key={c.key} style={styles.courseCard} onClick={() => navigate(c.path)}>
+          <div
+            key={c.key}
+            style={{
+              ...styles.courseCard,
+              ...(hoveredCard === c.key ? {
+                boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                borderColor: 'var(--color-border-strong)',
+              } : {}),
+            }}
+            onClick={() => navigate(c.path)}
+            onMouseEnter={() => setHoveredCard(c.key)}
+            onMouseLeave={() => setHoveredCard(null)}
+          >
             <div style={styles.courseIcon}>{c.icon}</div>
             <div style={styles.courseTitle}>{c.label}</div>
             <div style={styles.courseDesc}>{c.desc}</div>

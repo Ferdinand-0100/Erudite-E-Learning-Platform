@@ -3,36 +3,95 @@
 :root {
   --sidebar-width: 230px;
   --topbar-height: 56px;
-  --color-bg: #f7f6f3;
+  /* Colour tokens */
+  --color-bg: #f5f4f1;
   --color-surface: #ffffff;
-  --color-surface-2: #f2f1ee;
+  --color-surface-2: #f0efec;
   --color-border: rgba(0,0,0,0.08);
   --color-border-strong: rgba(0,0,0,0.15);
   --color-text: #1a1918;
   --color-text-2: #5a5855;
   --color-text-3: #9a9895;
-  --color-accent: #1a1918;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
   --color-accent-fg: #ffffff;
   --color-success: #166534;
   --color-success-bg: #dcfce7;
   --color-danger: #991b1b;
   --color-danger-bg: #fee2e2;
+  /* Typography tokens */
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --line-height-body: 1.6;
+  /* Spacing tokens */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  /* Border-radius tokens */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   font-family: 'DM Sans', sans-serif;
   font-size: 15px;
   color: var(--color-text);
-  background: var(--color-bg);
 }
 
-body { min-height: 100vh; }
+/* ─── Background image + grid overlay ─────────────────────────────────────
+   To use your own image, replace the url() value in --bg-image below.
+   Place the file in /public and reference it as url('/your-image.jpg').
+   Adjust --bg-overlay-opacity (0–1) to control how visible the grid is.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --bg-image: url('/images/HeroBackground.jpeg'); /* ← swap this path */
+  --bg-overlay-color: rgba(245, 244, 241, 0.82); /* matches --color-bg */
+  --bg-grid-color: rgba(0, 0, 0, 0.07);
+  --bg-grid-size: 32px;
+}
+
+body {
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Layer 1: background image */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Layer 2: solid tint + grid pattern on top of the image */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(var(--bg-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid-color) 1px, transparent 1px),
+    var(--bg-overlay-color);
+  background-size: var(--bg-grid-size) var(--bg-grid-size), var(--bg-grid-size) var(--bg-grid-size), 100% 100%;
+}
 
 a { color: inherit; text-decoration: none; }
 
 button { font-family: inherit; cursor: pointer; }
 
 input, textarea, select { font-family: inherit; font-size: 14px; }
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+p, li { line-height: var(--line-height-body); }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
