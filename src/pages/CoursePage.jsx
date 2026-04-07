@@ -1,37 +1,22 @@
 import { useParams } from 'react-router-dom'
+import { buildCourseKey } from '../lib/courseConfig'
 import VideoList from '../components/VideoList'
 import MaterialsList from '../components/MaterialsList'
 import QuizEngine from '../components/QuizEngine'
 
 /**
- * course prop: 'english' | 'mandarin' | 'computer'
- *
- * URL params:
- *   English  → /english/:section/:tab   (section = GET/IELTS/PTE, tab = videos/materials/quiz)
- *   Mandarin → /mandarin/:tab
- *   Computer → /computer/:tab
+ * Reads course, subclass, level, tab from URL params.
+ * Derives courseKey = buildCourseKey(course, subclass, level).
+ * Renders the active tab component, or null for unrecognised tabs.
  */
-export default function CoursePage({ course }) {
-  const { section, tab } = useParams()
+export default function CoursePage() {
+  const { course, subclass, level, tab } = useParams()
 
-  let courseKey, activeTab
+  const courseKey = buildCourseKey(course, subclass, level)
 
-  if (course === 'english') {
-    courseKey = `english_${section?.toUpperCase()}`
-    activeTab = tab
-  } else {
-    // For mandarin/computer the :tab param is in the "section" slot
-    courseKey = course
-    activeTab = tab
-  }
+  if (tab === 'videos')    return <VideoList     courseKey={courseKey} />
+  if (tab === 'materials') return <MaterialsList courseKey={courseKey} />
+  if (tab === 'quiz')      return <QuizEngine    courseKey={courseKey} />
 
-  if (!activeTab) return null
-
-  return (
-    <div>
-      {activeTab === 'videos'    && <VideoList     courseKey={courseKey} />}
-      {activeTab === 'materials' && <MaterialsList courseKey={courseKey} />}
-      {activeTab === 'quiz'      && <QuizEngine    courseKey={courseKey} />}
-    </div>
-  )
+  return null
 }
