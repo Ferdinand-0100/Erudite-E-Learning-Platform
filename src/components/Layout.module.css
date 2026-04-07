@@ -2,6 +2,7 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
+  background: transparent;
 }
 
 /* SIDEBAR */
@@ -97,6 +98,7 @@
   background: var(--color-surface-2);
   color: var(--color-text);
   font-weight: 500;
+  border-left: 3px solid var(--color-accent);
 }
 
 /* ICON */
@@ -126,7 +128,8 @@
 
   transition:
     background 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    transform 0.05s ease;
 }
 
 .subItem:hover {
@@ -138,6 +141,7 @@
   background: var(--color-surface-2);
   color: var(--color-text);
   font-weight: 500;
+  border-left: 3px solid var(--color-accent);
 }
 
 /* SUBSUB */
@@ -154,7 +158,7 @@
   color: var(--color-text-3);
   text-decoration: none;
 
-  transition: color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
 }
 
 .subSubItem:hover {
@@ -163,6 +167,7 @@
 
 .subSubActive {
   color: var(--color-text);
+  border-left: 2px solid var(--color-accent);
 }
 
 /* CHEVRON */
@@ -195,8 +200,9 @@
   height: 32px;
 
   border-radius: 50%;
-  background: var(--color-surface-2);
+  background: var(--color-accent);
   border: 1px solid var(--color-border);
+  color: var(--color-accent-fg);
 
   display: flex;
   align-items: center;
@@ -243,7 +249,68 @@
   flex: 1;
   overflow-y: auto;
 
-  background: var(--color-bg);
+  background: transparent;
 
   padding: 34px 42px 60px;
+}
+
+/* HAMBURGER BUTTON (mobile only) */
+
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  margin-bottom: 16px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--color-text-2);
+  border-radius: 2px;
+}
+
+/* OVERLAY (mobile) */
+
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 99;
+}
+
+/* RESPONSIVE SIDEBAR */
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+
+  .overlay {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
 }

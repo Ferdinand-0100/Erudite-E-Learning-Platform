@@ -9,6 +9,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [btnHovered, setBtnHovered] = useState(false)
+  const [focusedInput, setFocusedInput] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -33,7 +35,7 @@ export default function LoginPage() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <div style={styles.brand}>EduLearn</div>
+        <div style={styles.brand}>Erudite English</div>
         <h1 style={styles.heading}>Welcome back</h1>
         <p style={styles.sub}>Sign in to access your courses</p>
 
@@ -46,7 +48,12 @@ export default function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              style={styles.input}
+              style={{
+                ...styles.input,
+                borderColor: focusedInput === 'email' ? 'var(--color-accent)' : undefined,
+              }}
+              onFocus={() => setFocusedInput('email')}
+              onBlur={() => setFocusedInput(null)}
             />
           </div>
           <div style={styles.field}>
@@ -57,13 +64,24 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              style={styles.input}
+              style={{
+                ...styles.input,
+                borderColor: focusedInput === 'password' ? 'var(--color-accent)' : undefined,
+              }}
+              onFocus={() => setFocusedInput('password')}
+              onBlur={() => setFocusedInput(null)}
             />
           </div>
 
           {error && <div style={styles.errorBox}>{error}</div>}
 
-          <button type="submit" disabled={loading} style={styles.btn}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ ...styles.btn, opacity: btnHovered ? 0.88 : 1 }}
+            onMouseEnter={() => setBtnHovered(true)}
+            onMouseLeave={() => setBtnHovered(false)}
+          >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
@@ -82,7 +100,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'var(--color-bg)',
+    background: 'transparent',
     padding: '24px',
   },
   card: {
@@ -126,8 +144,8 @@ const styles = {
   },
   errorBox: {
     padding: '10px 12px',
-    background: '#fee2e2',
-    color: '#991b1b',
+    background: 'var(--color-danger-bg)',
+    color: 'var(--color-danger)',
     borderRadius: 'var(--radius-sm)',
     fontSize: '13px',
   },
