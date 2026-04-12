@@ -22,7 +22,7 @@ const styles = {
     WebkitBackdropFilter: 'blur(20px)',
     background: 'rgba(255, 255, 255, 0.55)',
     borderBottom: '1px solid rgba(255, 255, 255, 0.35)',
-    boxShadow: '0 2px 24px rgba(0, 0, 0, 0.06)',
+    boxShadow: '0 2px 24px rgba(0, 0, 0, 0.2)',
   },
   inner: {
     /* Re-apply horizontal padding + top padding */

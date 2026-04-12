@@ -40,7 +40,7 @@ export default function CourseShell() {
             <button
               key={key}
               style={{ ...styles.pill, ...(subclass === key ? styles.pillActive : {}) }}
-              onClick={() => navigate(defaultSubclassPath(course, key))}
+              onClick={e => { e.currentTarget.blur(); navigate(defaultSubclassPath(course, key)) }}
             >
               {sub.label}
             </button>
@@ -67,18 +67,23 @@ const styles = {
   pills: { display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' },
   pill: {
     padding: '6px 16px',
-    border: '1px solid var(--color-border-strong)',
+    border: 'none',
     borderRadius: '20px',
     fontSize: '13px',
-    background: 'rgba(255,255,255,0.6)',
+    background: 'rgba(255,255,255,0.85)',
     color: 'var(--color-text-2)',
     cursor: 'pointer',
     transition: 'all 0.15s',
     fontFamily: 'inherit',
+    outline: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    appearance: 'none',
+    boxShadow: 'none',
   },
   pillActive: {
     background: 'var(--color-accent)',
     color: 'var(--color-accent-fg)',
-    borderColor: 'var(--color-accent)',
+    border: 'none',
   },
 }
