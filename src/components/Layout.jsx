@@ -86,8 +86,9 @@ export default function Layout() {
           <div className={styles.sectionLabel}>Courses</div>
 
           {Object.entries(COURSE_CONFIG).map(([courseKey, course]) => {
-            const courseActive = location.pathname.startsWith(`/${courseKey}`)
-            const courseExpanded = openMenus[courseKey] || courseActive
+            const courseActive = location.pathname.startsWith(`/${courseKey}/`) || location.pathname === `/${courseKey}`
+            // Only use openMenus state when course is NOT active — when active, URL drives expansion
+            const courseExpanded = courseActive || openMenus[courseKey]
 
             return (
               <div key={courseKey}>
@@ -95,7 +96,12 @@ export default function Layout() {
                 <div
                   className={`${styles.navItem} ${courseActive ? styles.active : ''}`}
                   onClick={() => {
-                    toggle(courseKey)
+                    // Close all other menus, toggle this one
+                    setOpenMenus(prev => {
+                      const next = Object.fromEntries(Object.keys(prev).map(k => [k, false]))
+                      next[courseKey] = !prev[courseKey]
+                      return next
+                    })
                     navigate(defaultPath(courseKey))
                     setIsSidebarOpen(false)
                   }}
@@ -108,7 +114,10 @@ export default function Layout() {
                 {courseExpanded && (
                   <div className={styles.submenu}>
                     {Object.entries(course.subclasses).map(([subclassKey, subclass]) => {
-                      const subclassActive = location.pathname.includes(`/${courseKey}/${subclassKey}`)
+                      // Use exact segment matching to avoid partial matches
+                      const subclassSegment = `/${courseKey}/${subclassKey}/`
+                      const subclassActive = location.pathname.startsWith(subclassSegment) ||
+                        location.pathname === `/${courseKey}/${subclassKey}`
 
                       return (
                         <div key={subclassKey}>
@@ -127,9 +136,11 @@ export default function Layout() {
                           {subclassActive && (
                             <div className={styles.subSubmenu}>
                               {subclass.levels.map(level => {
-                                const levelActive = location.pathname.includes(
-                                  `/${courseKey}/${subclassKey}/${level.key}`
-                                )
+                                // Exact segment match: must have /level.key/ or end with /level.key
+                                const levelSegment = `/${courseKey}/${subclassKey}/${level.key}/`
+                                const levelExact = `/${courseKey}/${subclassKey}/${level.key}`
+                                const levelActive = location.pathname.startsWith(levelSegment) ||
+                                  location.pathname === levelExact
 
                                 return (
                                   <div key={level.key}>
