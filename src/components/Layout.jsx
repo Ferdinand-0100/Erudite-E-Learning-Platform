@@ -26,7 +26,7 @@ function ChevronIcon({ open }) {
 }
 
 export default function Layout() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, profile } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -196,17 +196,30 @@ export default function Layout() {
 
           <div className={styles.avatarInfo}>
             <div className={styles.avatarName}>{displayName}</div>
-            <div className={styles.avatarRole}>Student</div>
+            <div className={styles.avatarRole}>{profile?.role === 'admin' ? 'Admin' : 'Student'}</div>
           </div>
 
-          <button
-            className={styles.signOutBtn}
-            onClick={handleSignOut}
-            title="Sign out"
-            aria-label="Sign out"
-          >
-            ↩
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+            {profile?.role === 'admin' && (
+              <button
+                className={styles.signOutBtn}
+                onClick={() => navigate('/admin')}
+                title="Admin panel"
+                aria-label="Go to admin panel"
+                style={{ fontSize: '13px' }}
+              >
+                ⚙️
+              </button>
+            )}
+            <button
+              className={styles.signOutBtn}
+              onClick={handleSignOut}
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              ↩
+            </button>
+          </div>
 
         </div>
 

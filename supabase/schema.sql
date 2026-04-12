@@ -13,6 +13,8 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+
 -- Auto-create a profile row when a new user signs up
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
@@ -143,6 +145,66 @@ create policy "Own quiz attempts" on public.quiz_attempts
 -- Progress: students read/write their own
 create policy "Own progress" on public.progress
   for all using (auth.uid() = student_id);
+
+-- Admin write policies
+drop policy if exists "Admin write videos"         on public.videos;
+drop policy if exists "Admin write materials"      on public.materials;
+drop policy if exists "Admin write quiz_questions" on public.quiz_questions;
+drop policy if exists "Admin update profiles"      on public.profiles;
+
+create policy "Admin write videos" on public.videos
+  for all
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+create policy "Admin write materials" on public.materials
+  for all
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+create policy "Admin write quiz_questions" on public.quiz_questions
+  for all
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+create policy "Admin update profiles" on public.profiles
+  for update
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
 
 
 -- ─── SAMPLE DATA ────────────────────────────────────────────
