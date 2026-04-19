@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+import { recordEvent } from '../lib/progressService'
 
 export default function VideoList({ courseKey }) {
+  const { user } = useAuth()
   const [videos, setVideos] = useState([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState(null)
@@ -37,7 +40,10 @@ export default function VideoList({ courseKey }) {
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {videos.map(v => (
-          <div key={v.id} style={{ ...styles.card, ...(active?.id === v.id ? styles.cardActive : {}) }} onClick={() => setActive(v)}>
+          <div key={v.id} style={{ ...styles.card, ...(active?.id === v.id ? styles.cardActive : {}) }} onClick={() => {
+            recordEvent(supabase, user.id, courseKey, 'video_watched', v.title)
+            setActive(v)
+          }}>
             <div style={styles.thumb}>▶</div>
             <div style={styles.info}>
               <div style={styles.title}>{v.title}</div>

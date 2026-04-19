@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+import { recordEvent } from '../lib/progressService'
 
 const TYPE_ICON = { pdf: '📄', docx: '📝', xlsx: '📊', pptx: '📊', default: '📁' }
 
 export default function MaterialsList({ courseKey }) {
+  const { user } = useAuth()
   const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -36,6 +39,7 @@ export default function MaterialsList({ courseKey }) {
             target="_blank"
             rel="noreferrer"
             style={styles.card}
+            onClick={() => recordEvent(supabase, user.id, courseKey, 'material_downloaded', m.title)}
           >
             <span style={styles.icon}>{icon}</span>
             <div style={styles.info}>

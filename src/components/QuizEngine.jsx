@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { recordEvent } from '../lib/progressService'
 
 export default function QuizEngine({ courseKey }) {
 
@@ -57,6 +58,7 @@ export default function QuizEngine({ courseKey }) {
 
     if (current + 1 >= questions.length) {
       setFinished(true)
+      recordEvent(supabase, user.id, courseKey, 'quiz_completed', `Quiz: ${courseKey}`)
     } else {
       setCurrent(c => c + 1)
       setSelected(null)

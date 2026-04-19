@@ -267,3 +267,23 @@ insert into public.quiz_questions (course_key, question, options, correct_answer
    '["Internet of Things", "Integration of Technology", "Input/Output Terminal", "Interconnected Online Tools"]',
    0, 1)
 on conflict do nothing;
+
+
+-- ─── ACTIVITY LOG ───────────────────────────────────────────
+create table if not exists public.activity_log (
+  id          uuid        primary key default gen_random_uuid(),
+  student_id  uuid        not null references public.profiles(id) on delete cascade,
+  course_key  text        not null,
+  event_type  text        not null check (event_type in ('video_watched', 'quiz_completed', 'material_downloaded')),
+  label       text        not null,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists activity_log_student_time_idx
+  on public.activity_log (student_id, created_at desc);
+
+alter table public.activity_log enable row level security;
+
+drop policy if exists "Own activity_log" on public.activity_log;
+create policy "Own activity_log" on public.activity_log
+  for all using (auth.uid() = student_id);
