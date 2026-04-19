@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { filterStudents } from '../../lib/adminValidators'
+import EnrollmentPicker from '../../components/admin/EnrollmentPicker'
+import { fetchEnrollments, assignEnrollment, removeEnrollment } from '../../lib/enrollmentService'
 
 const PAGE_SIZE = 20
 
@@ -62,6 +64,13 @@ export default function AdminStudents() {
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [page, setPage] = useState(0)
+  const [enrollmentKeys, setEnrollmentKeys] = useState([])
+
+  // Manage Enrollments modal state
+  const [managingStudent, setManagingStudent] = useState(null)
+  const [managingKeys, setManagingKeys] = useState([])
+  const [managingLoading, setManagingLoading] = useState(false)
+  const [managingError, setManagingError] = useState(null)
 
   useEffect(() => {
     fetchStudents()
@@ -94,7 +103,17 @@ export default function AdminStudents() {
     if (fnErr || data?.error) {
       setError(fnErr?.message || data?.error)
     } else {
+      if (data?.userId) {
+        for (const key of enrollmentKeys) {
+          try {
+            await assignEnrollment(supabase, data.userId, key)
+          } catch (err) {
+            setError(`Account created but failed to assign enrollment "${key}": ${err.message}`)
+          }
+        }
+      }
       setForm(emptyForm)
+      setEnrollmentKeys([])
       await fetchStudents()
     }
     setSubmitting(false)
@@ -118,6 +137,32 @@ export default function AdminStudents() {
       .eq('id', student.id)
     if (err) setError(err.message)
     else await fetchStudents()
+  }
+
+  async function handleOpenManage(student) {
+    setManagingStudent(student)
+    setManagingError(null)
+    setManagingLoading(true)
+    const keys = await fetchEnrollments(supabase, student.id)
+    setManagingKeys(keys)
+    setManagingLoading(false)
+  }
+
+  async function handleManagingChange(newKeys) {
+    const added = newKeys.filter(k => !managingKeys.includes(k))
+    const removed = managingKeys.filter(k => !newKeys.includes(k))
+    setManagingError(null)
+    try {
+      for (const key of added) {
+        await assignEnrollment(supabase, managingStudent.id, key)
+      }
+      for (const key of removed) {
+        await removeEnrollment(supabase, managingStudent.id, key)
+      }
+      setManagingKeys(newKeys)
+    } catch (err) {
+      setManagingError(err.message)
+    }
   }
 
   const filtered = filterStudents(
@@ -201,6 +246,11 @@ export default function AdminStudents() {
         </div>
 
         <div>
+          <label style={labelStyle}>Enrollments</label>
+          <EnrollmentPicker selectedKeys={enrollmentKeys} onChange={setEnrollmentKeys} />
+        </div>
+
+        <div>
           <button type="submit" style={btnPrimary} disabled={submitting}>
             {submitting ? 'Creating…' : 'Create Student'}
           </button>
@@ -250,7 +300,8 @@ export default function AdminStudents() {
                   <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>
                     {new Date(s.created_at).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button style={btnSecondary} onClick={() => handleOpenManage(s)}>Enrollments</button>
                     {s.is_active ? (
                       <button style={btnDanger} onClick={() => handleDeactivate(s)}>Deactivate</button>
                     ) : (
@@ -284,6 +335,62 @@ export default function AdminStudents() {
             </div>
           )}
         </>
+      )}
+
+      {/* Manage Enrollments Modal */}
+      {managingStudent && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: 'var(--color-surface)',
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--space-5)',
+            width: '100%',
+            maxWidth: 600,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            position: 'relative',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+                Manage Enrollments — {managingStudent.full_name || managingStudent.email}
+              </h2>
+              <button
+                onClick={() => setManagingStudent(null)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--color-text-2)', lineHeight: 1 }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {managingError && (
+              <div style={{
+                background: 'var(--color-danger-bg)',
+                color: 'var(--color-danger)',
+                border: '1px solid var(--color-danger)',
+                borderRadius: 'var(--radius-sm)',
+                padding: 'var(--space-2) var(--space-3)',
+                marginBottom: 'var(--space-3)',
+                fontSize: '13px',
+              }}>
+                {managingError}
+              </div>
+            )}
+
+            {managingLoading ? (
+              <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading enrollments…</p>
+            ) : (
+              <EnrollmentPicker selectedKeys={managingKeys} onChange={handleManagingChange} />
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

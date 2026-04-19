@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
+import { EnrollmentProvider } from './lib/EnrollmentContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import Home from './pages/Home'
@@ -63,7 +64,9 @@ export default function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <Layout />
+            <EnrollmentProvider>
+              <Layout />
+            </EnrollmentProvider>
           </ProtectedRoute>
         }
       >

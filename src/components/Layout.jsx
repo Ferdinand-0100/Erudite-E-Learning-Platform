@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
 import styles from './Layout.module.css'
 
@@ -27,6 +28,8 @@ function ChevronIcon({ open }) {
 
 export default function Layout() {
   const { user, signOut, profile } = useAuth()
+  const { enrollments, loading: enrollmentLoading } = useEnrollment()
+  const isAdmin = profile?.role === 'admin'
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -125,10 +128,15 @@ export default function Layout() {
                           <div
                             className={`${styles.subItem} ${subclassActive ? styles.subActive : ''}`}
                             onClick={() => {
+                              const enrolled = isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`))
+                              if (!enrolled) return
                               navigate(defaultSubclassPath(courseKey, subclassKey))
                               setIsSidebarOpen(false)
                             }}
-                            style={{ cursor: 'pointer' }}
+                            style={{
+                              cursor: isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`)) ? 'pointer' : 'default',
+                              opacity: !isAdmin && !enrollmentLoading && !enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`)) ? 0.4 : 1,
+                            }}
                           >
                             {subclass.label}
                           </div>

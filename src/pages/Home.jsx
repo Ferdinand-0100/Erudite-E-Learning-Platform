@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
 import { supabase } from '../lib/supabase'
 import { COURSE_CONFIG } from '../lib/courseConfig'
 
@@ -78,6 +79,7 @@ const COURSES = Object.entries(COURSE_CONFIG).map(([key, cfg]) => {
 // ---------------------------------------------------------------------------
 export default function Home() {
   const { user } = useAuth()
+  const { enrollments, loading: enrollmentLoading } = useEnrollment()
   const navigate = useNavigate()
   const [hoveredCard, setHoveredCard] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -123,18 +125,20 @@ export default function Home() {
       <div style={styles.courseGrid}>
         {COURSES.map(c => {
           const pct = progressMap[c.key] ?? 0
+          const isActive = enrollmentLoading || enrollments.some(k => k.startsWith(`${c.key}_`))
           return (
             <div
               key={c.key}
               style={{
                 ...styles.courseCard,
-                ...(hoveredCard === c.key ? {
+                ...(hoveredCard === c.key && isActive ? {
                   boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
                   borderColor: 'var(--color-border-strong)',
                 } : {}),
+                ...(!isActive ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
               }}
-              onClick={() => navigate(c.defaultPath)}
-              onMouseEnter={() => setHoveredCard(c.key)}
+              onClick={() => isActive && navigate(c.defaultPath)}
+              onMouseEnter={() => isActive && setHoveredCard(c.key)}
               onMouseLeave={() => setHoveredCard(null)}
             >
               <div style={styles.courseIcon}>{c.icon}</div>
@@ -148,7 +152,9 @@ export default function Home() {
                 </div>
               )}
               <div style={styles.progressLabel}>
-                {loading ? '' : `${pct}% complete`}
+                {!enrollmentLoading && !isActive
+                  ? 'Not enrolled'
+                  : loading ? '' : `${pct}% complete`}
               </div>
             </div>
           )

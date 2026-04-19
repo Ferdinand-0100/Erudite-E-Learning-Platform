@@ -1,5 +1,7 @@
 import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
+import { useAuth } from '../lib/AuthContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
 import CourseHeader from '../components/CourseHeader'
 import PageHeader from '../components/PageHeader'
 import LevelSelector from '../components/LevelSelector'
@@ -14,6 +16,9 @@ const TABS = [
 export default function CourseShell() {
   const { course, subclass, level } = useParams()
   const navigate = useNavigate()
+  const { profile } = useAuth()
+  const { isEnrolled, enrollments, loading: enrollmentLoading } = useEnrollment()
+  const isAdmin = profile?.role === 'admin'
 
   const courseConfig = COURSE_CONFIG[course]
   if (!courseConfig) return <Navigate to="/" replace />
@@ -28,6 +33,15 @@ export default function CourseShell() {
     return <Navigate to={defaultSubclassPath(course, subclass)} replace />
   }
 
+  // Enrollment guard — wait for loading before redirecting
+  if (!isAdmin && !enrollmentLoading && !isEnrolled(course, subclass, level)) {
+    return <Navigate to="/" replace />
+  }
+
+  if (!isAdmin && enrollmentLoading) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--color-text-3)' }}>Loading…</div>
+  }
+
   return (
     <div>
       <CourseHeader>
@@ -36,20 +50,34 @@ export default function CourseShell() {
           breadcrumb={`Courses › ${courseConfig.label}`}
         />
         <div style={styles.pills}>
-          {Object.entries(courseConfig.subclasses).map(([key, sub]) => (
-            <button
-              key={key}
-              style={{ ...styles.pill, ...(subclass === key ? styles.pillActive : {}) }}
-              onClick={e => { e.currentTarget.blur(); navigate(defaultSubclassPath(course, key)) }}
-            >
-              {sub.label}
-            </button>
-          ))}
+          {Object.entries(courseConfig.subclasses).map(([key, sub]) => {
+            const subEnrolled = isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${course}_${key}_`))
+            return (
+              <button
+                key={key}
+                style={{
+                  ...styles.pill,
+                  ...(subclass === key ? styles.pillActive : {}),
+                  ...(!subEnrolled ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
+                }}
+                onClick={e => {
+                  e.currentTarget.blur()
+                  if (!subEnrolled) return
+                  navigate(defaultSubclassPath(course, key))
+                }}
+              >
+                {sub.label}
+              </button>
+            )
+          })}
         </div>
-        <LevelSelector
+        <LevelSelectorWithEnrollment
           levels={subclassConfig.levels}
           activeLevel={level}
           basePath={`/${course}/${subclass}`}
+          isAdmin={isAdmin}
+          enrollmentLoading={enrollmentLoading}
+          isEnrolled={(lvlKey) => isEnrolled(course, subclass, lvlKey)}
         />
         <Tabs
           basePath={`/${course}/${subclass}/${level}`}
@@ -59,6 +87,44 @@ export default function CourseShell() {
       <div style={{ padding: '32px 42px 60px' }}>
         <Outlet />
       </div>
+    </div>
+  )
+}
+
+function LevelSelectorWithEnrollment({ levels, activeLevel, basePath, isAdmin, enrollmentLoading, isEnrolled }) {
+  const navigate = useNavigate()
+  return (
+    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      {levels.map(level => {
+        const enrolled = isAdmin || enrollmentLoading || isEnrolled(level.key)
+        return (
+          <button
+            key={level.key}
+            style={{
+              padding: '6px 16px',
+              border: 'none',
+              borderRadius: '20px',
+              fontSize: '13px',
+              background: activeLevel === level.key ? 'var(--color-accent)' : 'rgba(255,255,255,0.85)',
+              color: activeLevel === level.key ? 'var(--color-accent-fg)' : 'var(--color-text-2)',
+              cursor: enrolled ? 'pointer' : 'not-allowed',
+              opacity: enrolled ? 1 : 0.4,
+              transition: 'all 0.15s',
+              fontFamily: 'inherit',
+              outline: 'none',
+              appearance: 'none',
+              boxShadow: 'none',
+            }}
+            onClick={e => {
+              e.currentTarget.blur()
+              if (!enrolled) return
+              navigate(`${basePath}/${level.key}/videos`)
+            }}
+          >
+            {level.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

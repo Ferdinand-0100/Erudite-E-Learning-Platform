@@ -287,3 +287,37 @@ alter table public.activity_log enable row level security;
 drop policy if exists "Own activity_log" on public.activity_log;
 create policy "Own activity_log" on public.activity_log
   for all using (auth.uid() = student_id);
+
+
+-- ─── ENROLLMENTS ────────────────────────────────────────────
+-- Stores per-level course access for each student.
+-- course_key format: {course}_{subclass}_{level} (all lowercase)
+-- e.g. 'english_ielts_band5', 'computer_web_beginner'
+create table if not exists public.enrollments (
+  id          uuid        primary key default gen_random_uuid(),
+  student_id  uuid        not null references public.profiles(id) on delete cascade,
+  course_key  text        not null,
+  created_at  timestamptz not null default now(),
+  unique (student_id, course_key)
+);
+
+create index if not exists enrollments_student_idx on public.enrollments(student_id);
+
+alter table public.enrollments enable row level security;
+
+drop policy if exists "Own enrollments"           on public.enrollments;
+drop policy if exists "Admin manage enrollments"  on public.enrollments;
+
+-- Students can only read their own enrollments
+create policy "Own enrollments" on public.enrollments
+  for select using (auth.uid() = student_id);
+
+-- Admins can read and write all enrollments
+create policy "Admin manage enrollments" on public.enrollments
+  for all
+  using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  )
+  with check (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
