@@ -16,7 +16,8 @@ import AdminStudents from './pages/admin/AdminStudents'
 
 function ProtectedRoute({ children }) {
   const { user, loading, profile } = useAuth()
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-3)' }}>Loading…</div>
+  // Wait for both auth AND profile to resolve before making routing decisions
+  if (loading || (user && profile === null)) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-3)' }}>Loading…</div>
   if (!user) return <Navigate to="/login" replace />
   if (profile?.role === 'admin') return <Navigate to="/admin" replace />
   return children

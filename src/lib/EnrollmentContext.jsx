@@ -18,12 +18,12 @@ export function EnrollmentProvider({ children }) {
     }
     setLoading(true)
     fetchEnrollments(supabase, user.id)
-      .then(keys => setEnrollments(keys))
+      .then(keys => setEnrollments(keys.map(k => k.toLowerCase())))
       .finally(() => setLoading(false))
   }, [user?.id])
 
   function isEnrolled(course, subclass, level) {
-    return enrollments.includes(buildCourseKey(course, subclass, level))
+    return enrollments.includes(buildCourseKey(course, subclass, level).toLowerCase())
   }
 
   return (

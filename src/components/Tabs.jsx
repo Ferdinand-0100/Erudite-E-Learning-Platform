@@ -8,6 +8,7 @@ export default function Tabs({ basePath, tabs }) {
       {tabs.map(tab => {
         const to = `${basePath}/${tab.key}`
         const isActive = location.pathname === to
+        const Icon = tab.icon
 
         return (
           <NavLink
@@ -18,6 +19,7 @@ export default function Tabs({ basePath, tabs }) {
               ...(isActive ? styles.tabActive : {})
             }}
           >
+            {Icon && <Icon size={14} style={{ marginRight: '6px', flexShrink: 0 }} />}
             {tab.label}
           </NavLink>
         )
@@ -29,23 +31,26 @@ export default function Tabs({ basePath, tabs }) {
 const styles = {
   tabs: {
     display: 'flex',
-    borderBottom: '1px solid var(--color-border)',
-    marginBottom: '28px'
+    borderBottom: '1px solid var(--glass-border)',
+    marginBottom: '0',
+    gap: '2px',
   },
-
   tab: {
-    padding: '10px 18px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px 16px',
     fontSize: '13.5px',
     color: 'var(--color-text-2)',
     textDecoration: 'none',
     borderBottom: '2px solid transparent',
     marginBottom: '-1px',
-    transition: 'all .18s ease'
+    transition: 'all var(--transition-base)',
+    borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
   },
-
   tabActive: {
-    color: 'var(--color-text)',
+    color: 'var(--color-accent)',
     borderBottom: '2px solid var(--color-accent)',
-    fontWeight: 500
+    fontWeight: 600,
+    background: 'rgba(37,99,235,0.06)',
   }
 }

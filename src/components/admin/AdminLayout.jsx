@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Video, FileText, HelpCircle, Users, LogOut } from 'lucide-react'
 import { useAuth } from '../../lib/AuthContext'
 import styles from './AdminLayout.module.css'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', to: '/admin', icon: '📊', end: true },
-  { label: 'Videos', to: '/admin/videos', icon: '🎬' },
-  { label: 'Materials', to: '/admin/materials', icon: '📄' },
-  { label: 'Quiz Questions', to: '/admin/quiz', icon: '❓' },
-  { label: 'Students', to: '/admin/students', icon: '👥' },
+  { label: 'Dashboard',     to: '/admin',           icon: LayoutDashboard, end: true },
+  { label: 'Videos',        to: '/admin/videos',    icon: Video },
+  { label: 'Materials',     to: '/admin/materials', icon: FileText },
+  { label: 'Quiz Questions',to: '/admin/quiz',      icon: HelpCircle },
+  { label: 'Students',      to: '/admin/students',  icon: Users },
 ]
 
 export default function AdminLayout() {
@@ -16,8 +17,8 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  const displayName =
-    user?.user_metadata?.full_name || user?.email || 'Admin'
+  const displayName = user?.user_metadata?.full_name || user?.email || 'Admin'
+  const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 
   const handleSignOut = async () => {
     await signOut()
@@ -32,13 +33,18 @@ export default function AdminLayout() {
 
         {/* Header */}
         <div className={styles.logo}>
-          <span className={styles.logoMark}>ADMIN PANEL</span>
-          <span className={styles.logoSub}>Erudite English</span>
+          <div className={styles.logoIcon}>
+            <LayoutDashboard size={16} />
+          </div>
+          <div>
+            <span className={styles.logoMark}>Admin Panel</span>
+            <span className={styles.logoSub}>Erudite English</span>
+          </div>
         </div>
 
         {/* Navigation */}
         <nav className={styles.nav}>
-          {NAV_ITEMS.map(({ label, to, icon, end }) => (
+          {NAV_ITEMS.map(({ label, to, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -48,7 +54,7 @@ export default function AdminLayout() {
               }
               onClick={() => setIsSidebarOpen(false)}
             >
-              <span className={styles.navIcon}>{icon}</span>
+              <span className={styles.navIcon}><Icon size={15} /></span>
               <span>{label}</span>
             </NavLink>
           ))}
@@ -56,6 +62,7 @@ export default function AdminLayout() {
 
         {/* Footer */}
         <div className={styles.sidebarFooter}>
+          <div className={styles.avatar}>{initials}</div>
           <div className={styles.footerInfo}>
             <div className={styles.footerName}>{displayName}</div>
             <span className={styles.badge}>Admin</span>
@@ -66,7 +73,7 @@ export default function AdminLayout() {
             title="Sign out"
             aria-label="Sign out"
           >
-            ↩
+            <LogOut size={15} />
           </button>
         </div>
 
@@ -83,16 +90,13 @@ export default function AdminLayout() {
 
       {/* MAIN CONTENT */}
       <main className={styles.main}>
-        {/* Hamburger (mobile only) */}
         <button
           className={styles.hamburger}
           onClick={() => setIsSidebarOpen(prev => !prev)}
           aria-label="Toggle navigation menu"
           aria-expanded={isSidebarOpen}
         >
-          <span />
-          <span />
-          <span />
+          <span /><span /><span />
         </button>
         <Outlet />
       </main>

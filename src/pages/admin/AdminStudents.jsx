@@ -56,15 +56,33 @@ const btnDanger = {
 
 const emptyForm = { email: '', password: '', fullName: '' }
 
+function loadDraft() {
+  try {
+    const raw = sessionStorage.getItem('create-student-draft')
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function saveDraft(form, enrollmentKeys) {
+  try {
+    sessionStorage.setItem('create-student-draft', JSON.stringify({ form, enrollmentKeys }))
+  } catch {}
+}
+
+function clearDraft() {
+  try { sessionStorage.removeItem('create-student-draft') } catch {}
+}
+
 export default function AdminStudents() {
+  const draft = loadDraft()
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(draft?.form ?? emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [page, setPage] = useState(0)
-  const [enrollmentKeys, setEnrollmentKeys] = useState([])
+  const [enrollmentKeys, setEnrollmentKeys] = useState(draft?.enrollmentKeys ?? [])
 
   // Manage Enrollments modal state
   const [managingStudent, setManagingStudent] = useState(null)
@@ -90,7 +108,16 @@ export default function AdminStudents() {
 
   function handleField(e) {
     const { name, value } = e.target
-    setForm(f => ({ ...f, [name]: value }))
+    setForm(f => {
+      const next = { ...f, [name]: value }
+      saveDraft(next, enrollmentKeys)
+      return next
+    })
+  }
+
+  function handleEnrollmentChange(keys) {
+    setEnrollmentKeys(keys)
+    saveDraft(form, keys)
   }
 
   async function handleCreate(e) {
@@ -100,10 +127,20 @@ export default function AdminStudents() {
     const { data, error: fnErr } = await supabase.functions.invoke('create-student', {
       body: { email: form.email, password: form.password, fullName: form.fullName },
     })
+    console.log('[create-student] response:', { data, fnErr })
     if (fnErr || data?.error) {
-      setError(fnErr?.message || data?.error)
+      setError(fnErr?.message || data?.error || JSON.stringify(fnErr))
     } else {
       if (data?.userId) {
+        // Ensure the profiles row exists with role: 'student'
+        await supabase.from('profiles').upsert({
+          id: data.userId,
+          email: form.email,
+          full_name: form.fullName || '',
+          role: 'student',
+          is_active: true,
+        }, { onConflict: 'id' })
+
         for (const key of enrollmentKeys) {
           try {
             await assignEnrollment(supabase, data.userId, key)
@@ -114,6 +151,7 @@ export default function AdminStudents() {
       }
       setForm(emptyForm)
       setEnrollmentKeys([])
+      clearDraft()
       await fetchStudents()
     }
     setSubmitting(false)
@@ -166,7 +204,7 @@ export default function AdminStudents() {
   }
 
   const filtered = filterStudents(
-    students.filter(s => s.role === 'student'),
+    students.filter(s => s.role === 'student' || s.role === null || s.role === undefined),
     search,
   )
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -247,7 +285,7 @@ export default function AdminStudents() {
 
         <div>
           <label style={labelStyle}>Enrollments</label>
-          <EnrollmentPicker selectedKeys={enrollmentKeys} onChange={setEnrollmentKeys} />
+          <EnrollmentPicker selectedKeys={enrollmentKeys} onChange={handleEnrollmentChange} />
         </div>
 
         <div>

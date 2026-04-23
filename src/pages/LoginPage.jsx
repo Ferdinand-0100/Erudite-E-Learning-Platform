@@ -34,6 +34,7 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={styles.card}>
         <div style={styles.brand}>Erudite English</div>
         <h1 style={styles.heading}>Welcome back</h1>
@@ -78,11 +79,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{ ...styles.btn, opacity: btnHovered ? 0.88 : 1 }}
+            style={{ ...styles.btn, background: btnHovered ? 'var(--color-accent-hover)' : 'var(--color-accent)' }}
             onMouseEnter={() => setBtnHovered(true)}
             onMouseLeave={() => setBtnHovered(false)}
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <span style={styles.spinner} />
+                Signing in…
+              </span>
+            ) : 'Sign in'}
           </button>
         </form>
 
@@ -104,23 +110,24 @@ const styles = {
     padding: '24px',
   },
   card: {
-    background: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
+    background: 'var(--glass-bg)',
+    backdropFilter: 'blur(var(--glass-blur))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur))',
+    border: '1px solid var(--glass-border)',
+    boxShadow: 'var(--shadow-elevated)',
     borderRadius: 'var(--radius-lg)',
     padding: '36px 32px',
     width: '100%',
     maxWidth: '360px',
   },
   brand: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: 'var(--color-text-3)',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
+    fontSize: '15px',
+    fontWeight: '700',
+    color: 'var(--color-accent)',
     marginBottom: '20px',
   },
   heading: {
-    fontSize: '22px',
+    fontSize: 'var(--font-size-display)',
     fontWeight: 600,
     letterSpacing: '-0.4px',
     marginBottom: '6px',
@@ -135,9 +142,10 @@ const styles = {
   label: { fontSize: '12px', fontWeight: 500, color: 'var(--color-text-2)' },
   input: {
     padding: '9px 12px',
+    minHeight: '44px',
     border: '1px solid var(--color-border-strong)',
     borderRadius: 'var(--radius-sm)',
-    background: 'var(--color-surface)',
+    background: 'rgba(255,255,255,0.6)',
     color: 'var(--color-text)',
     outline: 'none',
     transition: 'border-color 0.15s',
@@ -159,7 +167,16 @@ const styles = {
     fontWeight: 500,
     fontSize: '14px',
     cursor: 'pointer',
-    transition: 'opacity 0.15s',
+    transition: 'background var(--transition-base)',
+  },
+  spinner: {
+    width: '14px',
+    height: '14px',
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderTopColor: 'white',
+    borderRadius: '50%',
+    animation: 'spin 0.7s linear infinite',
+    display: 'inline-block',
   },
   note: {
     marginTop: '20px',

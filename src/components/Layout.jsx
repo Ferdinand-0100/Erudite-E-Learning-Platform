@@ -1,30 +1,10 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Home, ChevronRight, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
 import styles from './Layout.module.css'
-
-function ChevronIcon({ open }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
-      aria-hidden
-    >
-      <path
-        d="M4 2l4 4-4 4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 export default function Layout() {
   const { user, signOut, profile } = useAuth()
@@ -82,7 +62,7 @@ export default function Layout() {
             }
             onClick={() => setIsSidebarOpen(false)}
           >
-            <HomeIcon />
+            <Home size={14} aria-hidden />
             <span>Home</span>
           </NavLink>
 
@@ -111,7 +91,7 @@ export default function Layout() {
                 >
                   <span className={styles.courseIcon}>{course.icon}</span>
                   <span>{course.label}</span>
-                  <ChevronIcon open={courseExpanded} />
+                  <span className={`${styles.chevronWrap} ${courseExpanded ? styles.chevronOpen : ''}`}><ChevronRight size={12} /></span>
                 </div>
 
                 {courseExpanded && (
@@ -128,14 +108,22 @@ export default function Layout() {
                           <div
                             className={`${styles.subItem} ${subclassActive ? styles.subActive : ''}`}
                             onClick={() => {
-                              const enrolled = isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`))
+                              const enrolled = isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase()))
                               if (!enrolled) return
-                              navigate(defaultSubclassPath(courseKey, subclassKey))
+                              // Navigate to the first enrolled level, not just the default
+                              const subclassCfg = COURSE_CONFIG[courseKey]?.subclasses[subclassKey]
+                              const firstEnrolledLevel = subclassCfg?.levels.find(l =>
+                                isAdmin || enrollmentLoading || enrollments.includes(`${courseKey}_${subclassKey}_${l.key}`.toLowerCase())
+                              )
+                              const path = firstEnrolledLevel
+                                ? `/${courseKey}/${subclassKey}/${firstEnrolledLevel.key}/videos`
+                                : defaultSubclassPath(courseKey, subclassKey)
+                              navigate(path)
                               setIsSidebarOpen(false)
                             }}
                             style={{
-                              cursor: isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`)) ? 'pointer' : 'default',
-                              opacity: !isAdmin && !enrollmentLoading && !enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`)) ? 0.4 : 1,
+                              cursor: isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase())) ? 'pointer' : 'default',
+                              opacity: !isAdmin && !enrollmentLoading && !enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase())) ? 0.4 : 1,
                             }}
                           >
                             {subclass.label}
@@ -216,7 +204,7 @@ export default function Layout() {
                 aria-label="Go to admin panel"
                 style={{ fontSize: '13px' }}
               >
-                ⚙️
+                <Settings size={13} aria-hidden />
               </button>
             )}
             <button
@@ -225,7 +213,7 @@ export default function Layout() {
               title="Sign out"
               aria-label="Sign out"
             >
-              ↩
+              <LogOut size={15} aria-hidden />
             </button>
           </div>
 
@@ -262,15 +250,3 @@ export default function Layout() {
   )
 }
 
-function HomeIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <path
-        d="M1 6L7 1l6 5v7H9V9H5v4H1V6z"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}

@@ -40,6 +40,15 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Upsert a profiles row so the student shows up with the correct role
+    await supabaseAdmin.from('profiles').upsert({
+      id: data.user.id,
+      email: email,
+      full_name: fullName || '',
+      role: 'student',
+      is_active: true,
+    }, { onConflict: 'id' })
+
     return new Response(
       JSON.stringify({ userId: data.user.id }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

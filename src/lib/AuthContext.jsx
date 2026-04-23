@@ -8,8 +8,8 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  async function fetchProfile(userId) {
-    const { data, error } = await supabase
+  async function fetchProfile(userId, email) {
+    const { data } = await supabase
       .from('profiles')
       .select('role, is_active')
       .eq('id', userId)
@@ -18,14 +18,22 @@ export function AuthProvider({ children }) {
       await supabase.auth.signOut()
       return
     }
-    setProfile(data ?? null)
+    // If DB has no role set, fall back to email-domain detection
+    const role = resolveRole(data, email)
+    setProfile(data ? { ...data, role } : { role })
+  }
+
+  function resolveRole(profileData, email) {
+    if (profileData?.role) return profileData.role
+    if (email?.endsWith('@admin.com')) return 'admin'
+    return 'student'
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false))
+        fetchProfile(session.user.id, session.user.email).finally(() => setLoading(false))
       } else {
         setLoading(false)
       }
@@ -35,7 +43,7 @@ export function AuthProvider({ children }) {
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user)
         setLoading(true)
-        fetchProfile(session.user.id).finally(() => setLoading(false))
+        fetchProfile(session.user.id, session.user.email).finally(() => setLoading(false))
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setProfile(null)

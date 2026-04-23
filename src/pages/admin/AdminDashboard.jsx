@@ -1,11 +1,36 @@
 import { useEffect, useState } from 'react'
+import { Video, FileText, HelpCircle, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const stats = [
-  { key: 'videos', label: 'Videos', icon: '🎬' },
-  { key: 'materials', label: 'Materials', icon: '📄' },
-  { key: 'quiz_questions', label: 'Quiz Questions', icon: '❓' },
-  { key: 'students', label: 'Students', icon: '👥' },
+  {
+    key: 'videos',
+    label: 'Total Videos',
+    icon: Video,
+    gradient: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    glow: 'rgba(59,130,246,0.3)',
+  },
+  {
+    key: 'materials',
+    label: 'Materials',
+    icon: FileText,
+    gradient: 'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
+    glow: 'rgba(16,185,129,0.3)',
+  },
+  {
+    key: 'quiz_questions',
+    label: 'Quiz Questions',
+    icon: HelpCircle,
+    gradient: 'linear-gradient(135deg, #7c2d12 0%, #f97316 100%)',
+    glow: 'rgba(249,115,22,0.3)',
+  },
+  {
+    key: 'students',
+    label: 'Students',
+    icon: Users,
+    gradient: 'linear-gradient(135deg, #4c1d95 0%, #8b5cf6 100%)',
+    glow: 'rgba(139,92,246,0.3)',
+  },
 ]
 
 export default function AdminDashboard() {
@@ -22,7 +47,7 @@ export default function AdminDashboard() {
           supabase.from('videos').select('*', { count: 'exact', head: true }),
           supabase.from('materials').select('*', { count: 'exact', head: true }),
           supabase.from('quiz_questions').select('*', { count: 'exact', head: true }),
-          supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+          supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
         ])
 
         const results = { videos, materials, quiz_questions, students }
@@ -51,10 +76,13 @@ export default function AdminDashboard() {
   }, [])
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 900 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 24, color: 'var(--color-text)' }}>
+    <div style={{ padding: '32px 24px', maxWidth: 960 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: 'var(--color-text)' }}>
         Dashboard
       </h1>
+      <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 28 }}>
+        Platform overview at a glance
+      </p>
 
       {error && (
         <div style={{
@@ -71,25 +99,74 @@ export default function AdminDashboard() {
       )}
 
       {loading ? (
-        <div style={{ color: 'var(--color-text-2)', fontSize: 14 }}>Loading...</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 130, borderRadius: 'var(--radius-lg)' }} />
+          ))}
+        </div>
       ) : (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
           gap: 16,
         }}>
-          {stats.map(({ key, label, icon }) => (
+          {stats.map(({ key, label, icon: Icon, gradient, glow }) => (
             <div key={key} style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
+              background: gradient,
               borderRadius: 'var(--radius-lg)',
-              padding: 24,
+              padding: '24px 22px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: `0 4px 20px ${glow}, 0 1px 3px rgba(0,0,0,0.1)`,
+              border: '3px solid rgba(0,0,0,0.35)',
+              minHeight: 130,
             }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
-              <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--color-text)', lineHeight: 1 }}>
+              {/* Decorative watermark icon — large, semi-transparent, bottom-right */}
+              <div style={{
+                position: 'absolute',
+                bottom: -10,
+                right: -10,
+                opacity: 0.15,
+                transform: 'rotate(-12deg)',
+                pointerEvents: 'none',
+              }}>
+                <Icon size={100} color="white" />
+              </div>
+
+              {/* Small icon badge top-left */}
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}>
+                <Icon size={18} color="white" />
+              </div>
+
+              {/* Count */}
+              <div style={{
+                fontSize: 36,
+                fontWeight: 800,
+                color: '#ffffff',
+                lineHeight: 1,
+                marginBottom: 6,
+                letterSpacing: '-1px',
+              }}>
                 {counts[key]}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-2)', marginTop: 6 }}>{label}</div>
+
+              {/* Label */}
+              <div style={{
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.75)',
+                fontWeight: 500,
+              }}>
+                {label}
+              </div>
             </div>
           ))}
         </div>

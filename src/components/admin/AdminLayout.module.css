@@ -29,23 +29,38 @@
 /* LOGO / HEADER */
 
 .logo {
-  padding: 24px 22px 18px;
+  padding: 20px 18px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
 }
 
 .logoMark {
   display: block;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: #ffffff;
 }
 
 .logoSub {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
-  margin-top: 4px;
+  margin-top: 2px;
+  display: block;
 }
 
 /* NAV */
@@ -110,12 +125,25 @@
 /* FOOTER */
 
 .sidebarFooter {
-  padding: 16px 18px;
+  padding: 14px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent), #0ea5e9);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .footerInfo {

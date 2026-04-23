@@ -18,11 +18,11 @@ const styles = {
   band: {
     /* Bleed out of the main area's 42px side padding */
     margin: '0 -42px',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    background: 'rgba(255, 255, 255, 0.55)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.35)',
-    boxShadow: '0 2px 24px rgba(0, 0, 0, 0.2)',
+    backdropFilter: 'blur(var(--glass-blur))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur))',
+    background: 'var(--glass-bg)',
+    borderBottom: '1px solid var(--glass-border)',
+    boxShadow: 'var(--shadow-elevated)',
   },
   inner: {
     /* Re-apply horizontal padding + top padding */
