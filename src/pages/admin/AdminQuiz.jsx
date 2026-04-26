@@ -27,6 +27,16 @@ const emptyFITB = {
   sort_order: 0,
 }
 
+function loadQuizDraft() {
+  try { return JSON.parse(sessionStorage.getItem('admin-quiz-draft') || 'null') } catch { return null }
+}
+function saveQuizDraft(type, mcq, fitb) {
+  try { sessionStorage.setItem('admin-quiz-draft', JSON.stringify({ type, mcq, fitb })) } catch {}
+}
+function clearQuizDraft() {
+  try { sessionStorage.removeItem('admin-quiz-draft') } catch {}
+}
+
 const inputStyle = {
   width: '100%',
   padding: '8px 10px',
@@ -95,14 +105,10 @@ export default function AdminQuiz() {
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState(null)
 
-  // Question type tab
-  const [questionType, setQuestionType] = useState('mcq') // 'mcq' | 'fitb'
-
-  // MCQ form state
-  const [mcqForm, setMcqForm] = useState(emptyMCQ)
-
-  // FITB form state
-  const [fitbForm, setFitbForm] = useState(emptyFITB)
+  const _draft = loadQuizDraft()
+  const [questionType, setQuestionType] = useState(_draft?.type ?? 'mcq')
+  const [mcqForm, setMcqForm] = useState(_draft?.mcq ?? emptyMCQ)
+  const [fitbForm, setFitbForm] = useState(_draft?.fitb ?? emptyFITB)
 
   useEffect(() => {
     fetchQuestions()
@@ -123,16 +129,22 @@ export default function AdminQuiz() {
 
   function handleMCQField(e) {
     const { name, value } = e.target
-    if (name === 'sort_order') setMcqForm(f => ({ ...f, sort_order: Number(value) }))
-    else if (name === 'correct_answer_index') setMcqForm(f => ({ ...f, correct_answer_index: Number(value) }))
-    else setMcqForm(f => ({ ...f, [name]: value }))
+    setMcqForm(f => {
+      const next = name === 'sort_order' ? { ...f, sort_order: Number(value) }
+        : name === 'correct_answer_index' ? { ...f, correct_answer_index: Number(value) }
+        : { ...f, [name]: value }
+      saveQuizDraft(questionType, next, fitbForm)
+      return next
+    })
   }
 
   function handleOption(index, value) {
     setMcqForm(f => {
       const options = [...f.options]
       options[index] = value
-      return { ...f, options }
+      const next = { ...f, options }
+      saveQuizDraft(questionType, next, fitbForm)
+      return next
     })
   }
 
@@ -162,6 +174,7 @@ export default function AdminQuiz() {
     setEditingId(null)
     setMcqForm(emptyMCQ)
     setFitbForm(emptyFITB)
+    clearQuizDraft()
     setError(null)
   }
 
@@ -214,6 +227,7 @@ export default function AdminQuiz() {
       setEditingId(null)
       setMcqForm(emptyMCQ)
       setFitbForm(emptyFITB)
+      clearQuizDraft()
       await fetchQuestions()
     }
     setSubmitting(false)
@@ -250,13 +264,14 @@ export default function AdminQuiz() {
 
       {/* Add / Edit form */}
       <form onSubmit={handleSubmit} style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
+        background: 'rgba(255,255,255,0.92)',
+        border: '1px solid rgba(0,0,0,0.55)',
         borderRadius: 'var(--radius-md)',
         padding: 'var(--space-4)',
         marginBottom: 'var(--space-6)',
         display: 'grid',
         gap: 'var(--space-3)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
@@ -272,7 +287,7 @@ export default function AdminQuiz() {
               <button
                 key={key}
                 type="button"
-                onClick={() => { setQuestionType(key); setError(null) }}
+                onClick={() => { setQuestionType(key); setError(null); saveQuizDraft(key, mcqForm, fitbForm) }}
                 style={{
                   padding: '5px 14px',
                   border: 'none',
@@ -348,7 +363,11 @@ export default function AdminQuiz() {
           <>
             <FillBlankEditor
               value={{ paragraph: fitbForm.paragraph, answers: fitbForm.answers }}
-              onChange={({ paragraph, answers }) => setFitbForm(f => ({ ...f, paragraph, answers }))}
+              onChange={({ paragraph, answers }) => {
+                const next = { ...fitbForm, paragraph, answers }
+                setFitbForm(next)
+                saveQuizDraft(questionType, mcqForm, next)
+              }}
             />
             <div style={{ maxWidth: 120 }}>
               <label style={labelStyle}>Sort order</label>
@@ -378,6 +397,7 @@ export default function AdminQuiz() {
       ) : questions.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No questions for this course key.</p>
       ) : (
+        <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
@@ -416,6 +436,7 @@ export default function AdminQuiz() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )

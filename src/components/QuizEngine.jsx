@@ -9,11 +9,31 @@ export default function QuizEngine({ courseKey }) {
   const { user } = useAuth()
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [current, setCurrent] = useState(0)
-  const [selected, setSelected] = useState(null)
-  const [score, setScore] = useState(0)
-  const [finished, setFinished] = useState(false)
   const [hoveredOption, setHoveredOption] = useState(null)
+
+  // Persist quiz progress in sessionStorage keyed by courseKey
+  const storageKey = `quiz-progress-${courseKey}`
+
+  function loadProgress() {
+    try {
+      const raw = sessionStorage.getItem(storageKey)
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  }
+
+  function saveProgress(state) {
+    try { sessionStorage.setItem(storageKey, JSON.stringify(state)) } catch {}
+  }
+
+  function clearProgress() {
+    try { sessionStorage.removeItem(storageKey) } catch {}
+  }
+
+  const saved = loadProgress()
+  const [current, setCurrent] = useState(saved?.current ?? 0)
+  const [selected, setSelected] = useState(saved?.selected ?? null)
+  const [score, setScore] = useState(saved?.score ?? 0)
+  const [finished, setFinished] = useState(saved?.finished ?? false)
 
   useEffect(() => {
     fetchQuestions()
@@ -25,6 +45,7 @@ export default function QuizEngine({ courseKey }) {
     setSelected(null)
     setScore(0)
     setFinished(false)
+    clearProgress()
     const { data } = await supabase
       .from('quiz_questions')
       .select('*')
@@ -36,10 +57,11 @@ export default function QuizEngine({ courseKey }) {
 
   const handleSelect = (idx) => {
     if (selected !== null) return
+    const isCorrect = idx === questions[current].correct_answer_index
+    const newScore = isCorrect ? score + 1 : score
     setSelected(idx)
-    if (idx === questions[current].correct_answer_index) {
-      setScore(s => s + 1)
-    }
+    if (isCorrect) setScore(newScore)
+    saveProgress({ current, selected: idx, score: newScore, finished })
     supabase.from('quiz_attempts').insert({
       student_id: user.id,
       question_id: questions[current].id,
@@ -50,11 +72,14 @@ export default function QuizEngine({ courseKey }) {
   const handleNext = () => {
     if (current + 1 >= questions.length) {
       setFinished(true)
+      saveProgress({ current, selected, score, finished: true })
       recordEvent(supabase, user.id, courseKey, 'quiz_completed', `Quiz: ${courseKey}`)
     } else {
-      setCurrent(c => c + 1)
+      const nextCurrent = current + 1
+      setCurrent(nextCurrent)
       setSelected(null)
       setHoveredOption(null)
+      saveProgress({ current: nextCurrent, selected: null, score, finished: false })
     }
   }
   if (loading) {

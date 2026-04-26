@@ -235,13 +235,14 @@ export default function AdminStudents() {
 
       {/* Create Student form */}
       <form onSubmit={handleCreate} style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
+        background: 'rgba(255,255,255,0.92)',
+        border: '1px solid rgba(0,0,0,0.55)',
         borderRadius: 'var(--radius-md)',
         padding: 'var(--space-4)',
         marginBottom: 'var(--space-6)',
         display: 'grid',
         gap: 'var(--space-3)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       }}>
         <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Create Student</h2>
 
@@ -313,9 +314,10 @@ export default function AdminStudents() {
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No students found.</p>
       ) : (
         <>
+          <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 'var(--space-4)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
+              <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Full Name</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Email</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Role</th>
@@ -326,7 +328,7 @@ export default function AdminStudents() {
             </thead>
             <tbody>
               {paginated.map(s => (
-                <tr key={s.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <tr key={s.id} style={{ borderBottom: '1px solid black' }}>
                   <td style={{ padding: '8px 10px' }}>{s.full_name || '—'}</td>
                   <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>{s.email}</td>
                   <td style={{ padding: '8px 10px' }}>
@@ -350,6 +352,7 @@ export default function AdminStudents() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {totalPages > 1 && (
             <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-4)', alignItems: 'center' }}>

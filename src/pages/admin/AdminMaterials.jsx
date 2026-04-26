@@ -14,6 +14,16 @@ const firstKey = (() => {
 
 const emptyForm = { title: '', file: null, sort_order: 0 }
 
+function loadDraft() {
+  try { return JSON.parse(sessionStorage.getItem('admin-materials-draft') || 'null') } catch { return null }
+}
+function saveDraft(form) {
+  try { sessionStorage.setItem('admin-materials-draft', JSON.stringify({ title: form.title, sort_order: form.sort_order })) } catch {}
+}
+function clearDraft() {
+  try { sessionStorage.removeItem('admin-materials-draft') } catch {}
+}
+
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   return `${Math.round(bytes / 1024)} KB`
@@ -87,7 +97,7 @@ export default function AdminMaterials() {
   const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(() => { const d = loadDraft(); return d ? { ...emptyForm, ...d } : emptyForm })
   const [editingId, setEditingId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -114,7 +124,11 @@ export default function AdminMaterials() {
     if (type === 'file') {
       setForm(f => ({ ...f, file: files[0] || null }))
     } else {
-      setForm(f => ({ ...f, [name]: name === 'sort_order' ? Number(value) : value }))
+      setForm(f => {
+        const next = { ...f, [name]: name === 'sort_order' ? Number(value) : value }
+        saveDraft(next)
+        return next
+      })
     }
   }
 
@@ -127,6 +141,7 @@ export default function AdminMaterials() {
   function cancelEdit() {
     setEditingId(null)
     setForm(emptyForm)
+    clearDraft()
     setError(null)
   }
 
@@ -191,6 +206,7 @@ export default function AdminMaterials() {
       setError(insertErr.message)
     } else {
       setForm(emptyForm)
+      clearDraft()
       await fetchMaterials()
     }
 
@@ -245,13 +261,14 @@ export default function AdminMaterials() {
 
       {/* Add / Edit form */}
       <form onSubmit={handleSubmit} style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
+        background: 'rgba(255,255,255,0.92)',
+        border: '1px solid rgba(0,0,0,0.55)',
         borderRadius: 'var(--radius-md)',
         padding: 'var(--space-4)',
         marginBottom: 'var(--space-6)',
         display: 'grid',
         gap: 'var(--space-3)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       }}>
         <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
           {editingId ? 'Edit Material' : 'Add Material'}
@@ -311,6 +328,7 @@ export default function AdminMaterials() {
       ) : materials.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No materials for this course key.</p>
       ) : (
+        <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
@@ -349,6 +367,7 @@ export default function AdminMaterials() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )
