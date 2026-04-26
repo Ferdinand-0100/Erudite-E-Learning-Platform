@@ -7,16 +7,11 @@ import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseCo
 import styles from './Layout.module.css'
 
 export default function Layout() {
-  const { user, signOut, profile, verifySession } = useAuth()
+  const { user, signOut, profile } = useAuth()
   const { enrollments, loading: enrollmentLoading } = useEnrollment()
   const isAdmin = profile?.role === 'admin'
   const navigate = useNavigate()
   const location = useLocation()
-
-  // Verify session on every route change
-  useEffect(() => {
-    verifySession()
-  }, [location.pathname])
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -160,7 +155,7 @@ export default function Layout() {
                                     {levelActive && (
                                       <div>
                                         {/* Level 4 — Tab links */}
-                                        {['videos', 'materials', 'quiz'].map(tab => (
+                                        {['videos', 'materials', 'quiz', 'essay'].map(tab => (
                                           <NavLink
                                             key={tab}
                                             to={`/${courseKey}/${subclassKey}/${level.key}/${tab}`}

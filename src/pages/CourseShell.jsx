@@ -1,5 +1,5 @@
 import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom'
-import { Lock, Video, FileText, HelpCircle } from 'lucide-react'
+import { Lock, Video, FileText, HelpCircle, PenLine } from 'lucide-react'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
 import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
@@ -12,6 +12,7 @@ const TABS = [
   { key: 'videos',    label: 'Tutorial videos',  icon: Video },
   { key: 'materials', label: 'Written materials', icon: FileText },
   { key: 'quiz',      label: 'Quiz system',       icon: HelpCircle },
+  { key: 'essay',     label: 'Essay checker',     icon: PenLine },
 ]
 
 export default function CourseShell() {

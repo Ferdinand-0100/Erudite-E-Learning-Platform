@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Video, FileText, HelpCircle, Users, LogOut } from 'lucide-react'
+import { LayoutDashboard, Video, FileText, HelpCircle, Users, LogOut, PenLine } from 'lucide-react'
 import { useAuth } from '../../lib/AuthContext'
 import styles from './AdminLayout.module.css'
 
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: 'Videos',        to: '/admin/videos',    icon: Video },
   { label: 'Materials',     to: '/admin/materials', icon: FileText },
   { label: 'Quiz Questions',to: '/admin/quiz',      icon: HelpCircle },
+  { label: 'Essay Prompts', to: '/admin/essay',     icon: PenLine },
   { label: 'Students',      to: '/admin/students',  icon: Users },
 ]
 
@@ -27,11 +28,7 @@ export default function AdminLayout() {
 
   return (
     <div className={styles.shell}>
-
-      {/* SIDEBAR */}
       <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ''}`}>
-
-        {/* Header */}
         <div className={styles.logo}>
           <div className={styles.logoIcon}>
             <LayoutDashboard size={16} />
@@ -42,16 +39,13 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className={styles.nav}>
           {NAV_ITEMS.map(({ label, to, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.active : ''}`
-              }
+              className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
               onClick={() => setIsSidebarOpen(false)}
             >
               <span className={styles.navIcon}><Icon size={15} /></span>
@@ -60,35 +54,22 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        {/* Footer */}
         <div className={styles.sidebarFooter}>
           <div className={styles.avatar}>{initials}</div>
           <div className={styles.footerInfo}>
             <div className={styles.footerName}>{displayName}</div>
             <span className={styles.badge}>Admin</span>
           </div>
-          <button
-            className={styles.signOutBtn}
-            onClick={handleSignOut}
-            title="Sign out"
-            aria-label="Sign out"
-          >
+          <button className={styles.signOutBtn} onClick={handleSignOut} title="Sign out" aria-label="Sign out">
             <LogOut size={15} />
           </button>
         </div>
-
       </aside>
 
-      {/* OVERLAY (mobile) */}
       {isSidebarOpen && (
-        <div
-          className={styles.overlay}
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
-        />
+        <div className={styles.overlay} onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
       )}
 
-      {/* MAIN CONTENT */}
       <main className={styles.main}>
         <button
           className={styles.hamburger}
@@ -100,7 +81,6 @@ export default function AdminLayout() {
         </button>
         <Outlet />
       </main>
-
     </div>
   )
 }
