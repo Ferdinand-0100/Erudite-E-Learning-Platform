@@ -69,9 +69,9 @@
    Adjust --bg-overlay-opacity (0–1) to control how visible the grid is.
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg-image: url('/images/HeroBackground.jpeg'); /* ← swap this path */
-  --bg-overlay-color: linear-gradient(90deg,rgba(42, 123, 155, 1) 0%, rgba(87, 199, 134, 0.473) 50%, rgba(237, 221, 83, 0.219) 100%); /* matches --color-bg */
-  --bg-grid-color: rgba(255, 255, 255, 0.192);
+  --bg-image: url('/images/Secondary.jpg'); /* ← swap this path */
+  --bg-overlay-color: linear-gradient(90deg,rgba(42, 123, 155, 1) 20%, rgba(87, 199, 134, 0.473) 50%, rgba(237, 221, 83, 0.219) 100%); /* matches --color-bg */
+  --bg-grid-color: rgba(255, 255, 255, 0.392);
   --bg-grid-size: 32px;
 }
 

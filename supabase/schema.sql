@@ -128,6 +128,22 @@ drop policy if exists "Own progress"                   on public.progress;
 create policy "Own profile" on public.profiles
   for all using (auth.uid() = id);
 
+-- Admins can read all profiles (for student list and dashboard count)
+drop policy if exists "Admin read all profiles" on public.profiles;
+create policy "Admin read all profiles" on public.profiles
+  for select
+  using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- Admins can insert profiles (for create-student upsert)
+drop policy if exists "Admin insert profiles" on public.profiles;
+create policy "Admin insert profiles" on public.profiles
+  for insert
+  with check (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
 -- Videos & materials: any authenticated user can read
 create policy "Authenticated read videos" on public.videos
   for select using (auth.role() = 'authenticated');
