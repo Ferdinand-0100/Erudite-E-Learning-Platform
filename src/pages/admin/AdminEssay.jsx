@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
@@ -34,7 +35,26 @@ export default function AdminEssay() {
   const [editingId, setEditingId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Submissions viewer
+  const [selectedPromptId, setSelectedPromptId] = useState(null)
+  const [submissions, setSubmissions] = useState([])
+  const [subsLoading, setSubsLoading] = useState(false)
+  const [expandedSub, setExpandedSub] = useState(null)
+
   useEffect(() => { fetchPrompts() }, [courseKey])
+
+  async function fetchSubmissions(promptId) {
+    setSelectedPromptId(promptId)
+    setSubsLoading(true)
+    setExpandedSub(null)
+    const { data } = await supabase
+      .from('essay_submissions')
+      .select('*, profiles(full_name, email)')
+      .eq('prompt_id', promptId)
+      .order('submitted_at', { ascending: false })
+    setSubmissions(data || [])
+    setSubsLoading(false)
+  }
 
   async function fetchPrompts() {
     setLoading(true)
@@ -158,6 +178,7 @@ export default function AdminEssay() {
                   <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>{p.min_words}–{p.max_words}</td>
                   <td style={{ padding: '8px 10px' }}>{p.sort_order}</td>
                   <td style={{ padding: '8px 10px', display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <button style={{ ...btnEdit, fontSize: 12 }} onClick={() => fetchSubmissions(p.id)}>Submissions</button>
                     <button style={btnEdit} onClick={() => startEdit(p)}>Edit</button>
                     <button style={btnDanger} onClick={() => handleDelete(p.id)}>Delete</button>
                   </td>
@@ -165,6 +186,72 @@ export default function AdminEssay() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Submissions panel */}
+      {selectedPromptId && (
+        <div style={{ marginTop: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+              Student Submissions — {prompts.find(p => p.id === selectedPromptId)?.title}
+            </h2>
+            <button style={btnSecondary} onClick={() => setSelectedPromptId(null)}>Close</button>
+          </div>
+
+          {subsLoading ? (
+            <p style={{ color: 'var(--color-text-2)', fontSize: 14 }}>Loading…</p>
+          ) : submissions.length === 0 ? (
+            <p style={{ color: 'var(--color-text-3)', fontSize: 14 }}>No submissions yet for this prompt.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {submissions.map(sub => (
+                <div key={sub.id} style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }}
+                    onClick={() => setExpandedSub(expandedSub === sub.id ? null : sub.id)}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {sub.profiles?.full_name || sub.profiles?.email || 'Unknown student'}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>
+                        {new Date(sub.submitted_at).toLocaleString()} ·{' '}
+                        Score: <strong>{sub.feedback?.overall_score ?? '—'}/10</strong> ·{' '}
+                        {sub.feedback?.band_estimate ?? ''}
+                      </div>
+                    </div>
+                    {expandedSub === sub.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+
+                  {expandedSub === sub.id && (
+                    <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Essay</div>
+                        <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--color-text-2)', whiteSpace: 'pre-wrap', margin: 0 }}>{sub.essay_text}</p>
+                      </div>
+                      {sub.feedback?.summary && (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>AI Feedback Summary</div>
+                          <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--color-text-2)', margin: 0 }}>{sub.feedback.summary}</p>
+                        </div>
+                      )}
+                      {sub.feedback?.categories && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {Object.entries(sub.feedback.categories).map(([key, val]) => (
+                            <div key={key} style={{ background: 'var(--color-surface-2)', borderRadius: 'var(--radius-sm)', padding: '8px 10px' }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'capitalize', marginBottom: 2 }}>{key.replace(/_/g, ' ')}</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{val.score}/10</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

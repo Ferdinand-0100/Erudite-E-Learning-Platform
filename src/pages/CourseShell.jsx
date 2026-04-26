@@ -5,7 +5,6 @@ import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
 import CourseHeader from '../components/CourseHeader'
 import PageHeader from '../components/PageHeader'
-import LevelSelector from '../components/LevelSelector'
 import Tabs from '../components/Tabs'
 
 const TABS = [

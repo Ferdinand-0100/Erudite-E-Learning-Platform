@@ -29,22 +29,27 @@ export async function recalculateProgress(supabase, studentId, courseKey) {
       { count: tv },
       { count: tq },
       { count: tm },
+      { count: te },
       { count: dv },
       { count: qc },
       { count: dm },
+      { count: de },
     ] = await Promise.all([
       supabase.from('videos').select('*', { count: 'exact', head: true }).eq('course_key', courseKey),
       supabase.from('quiz_questions').select('*', { count: 'exact', head: true }).eq('course_key', courseKey),
       supabase.from('materials').select('*', { count: 'exact', head: true }).eq('course_key', courseKey),
+      supabase.from('essay_prompts').select('*', { count: 'exact', head: true }).eq('course_key', courseKey),
       supabase.from('activity_log').select('label', { count: 'exact', head: true })
         .eq('student_id', studentId).eq('course_key', courseKey).eq('event_type', 'video_watched'),
       supabase.from('activity_log').select('*', { count: 'exact', head: true })
         .eq('student_id', studentId).eq('course_key', courseKey).eq('event_type', 'quiz_completed'),
       supabase.from('activity_log').select('label', { count: 'exact', head: true })
         .eq('student_id', studentId).eq('course_key', courseKey).eq('event_type', 'material_downloaded'),
+      supabase.from('activity_log').select('label', { count: 'exact', head: true })
+        .eq('student_id', studentId).eq('course_key', courseKey).eq('event_type', 'essay_submitted'),
     ])
 
-    const total = (tv ?? 0) + (tq ?? 0) + (tm ?? 0)
+    const total = (tv ?? 0) + (tq ?? 0) + (tm ?? 0) + (te ?? 0)
     if (total === 0) {
       await supabase.from('progress').upsert(
         { student_id: studentId, course_key: courseKey, percent: 0, updated_at: new Date().toISOString() },
@@ -53,7 +58,7 @@ export async function recalculateProgress(supabase, studentId, courseKey) {
       return
     }
 
-    const done = (dv ?? 0) + (qc ?? 0) + (dm ?? 0)
+    const done = (dv ?? 0) + (qc ?? 0) + (dm ?? 0) + (de ?? 0)
     const percent = clamp(Math.round((done / total) * 100))
     console.log('[progressService] upserting percent:', { studentId, courseKey, done, total, percent })
 

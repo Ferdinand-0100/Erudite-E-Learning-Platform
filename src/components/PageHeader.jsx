@@ -9,18 +9,20 @@ export default function PageHeader({ title, breadcrumb }) {
 
 const styles = {
   header: {
-    marginBottom: '20px'
+    marginBottom: '20px',
   },
-
   breadcrumb: {
-    fontSize: '12px',
-    color: 'var(--color-text-3)',
-    marginBottom: '6px'
-  },
-
-  title: {
-    fontSize: '24px',
+    fontSize: '11px',
     fontWeight: 600,
-    letterSpacing: '-0.4px'
-  }
+    color: 'var(--color-text-3)',
+    marginBottom: '6px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  },
+  title: {
+    fontSize: 'var(--font-size-display)',
+    fontWeight: 700,
+    letterSpacing: '-0.5px',
+    color: 'var(--color-text)',
+  },
 }

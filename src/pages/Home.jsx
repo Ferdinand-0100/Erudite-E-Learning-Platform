@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Video, CheckCircle, FileText, Pin, BookOpen } from 'lucide-react'
+import { Video, CheckCircle, FileText, Pin, BookOpen, PenLine } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
 import { supabase } from '../lib/supabase'
@@ -33,6 +33,7 @@ const EVENT_ICONS = {
   video_watched: Video,
   quiz_completed: CheckCircle,
   material_downloaded: FileText,
+  essay_submitted: PenLine,
 }
 
 const COURSES = Object.entries(COURSE_CONFIG).map(([key, cfg]) => {

@@ -9,7 +9,7 @@ import { buildCourseKey } from '../../lib/enrollmentService'
  *   selectedKeys: string[]          — currently selected full course_key values
  *   onChange(keys: string[]): void  — called with the full updated selection
  */
-export default function EnrollmentPicker({ selectedKeys = [], onChange }) {
+export default function EnrollmentPicker({ selectedKeys = [], onChange, dark = false }) {
   function toggle(key) {
     if (selectedKeys.includes(key)) {
       onChange(selectedKeys.filter(k => k !== key))
@@ -18,20 +18,43 @@ export default function EnrollmentPicker({ selectedKeys = [], onChange }) {
     }
   }
 
+  const courseBlockStyle = dark ? {
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px 14px',
+    background: 'rgba(255,255,255,0.05)',
+  } : styles.courseBlock
+
+  const courseLabelStyle = dark ? {
+    fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)',
+    marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em',
+  } : styles.courseLabel
+
+  const subclassLabelStyle = dark ? {
+    fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: '6px',
+  } : styles.subclassLabel
+
+  const levelLabelStyle = dark ? {
+    display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px',
+    color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '3px 8px',
+    border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px',
+    background: 'rgba(255,255,255,0.06)', userSelect: 'none',
+  } : styles.levelLabel
+
   return (
     <div style={styles.container}>
       {Object.entries(COURSE_CONFIG).map(([courseKey, course]) => (
-        <div key={courseKey} style={styles.courseBlock}>
-          <div style={styles.courseLabel}>{course.label}</div>
+        <div key={courseKey} style={courseBlockStyle}>
+          <div style={courseLabelStyle}>{course.label}</div>
           {Object.entries(course.subclasses).map(([subclassKey, subclass]) => (
             <div key={subclassKey} style={styles.subclassBlock}>
-              <div style={styles.subclassLabel}>{subclass.label}</div>
+              <div style={subclassLabelStyle}>{subclass.label}</div>
               <div style={styles.levelRow}>
                 {subclass.levels.map(level => {
                   const key = buildCourseKey(courseKey, subclassKey, level.key)
                   const checked = selectedKeys.includes(key)
                   return (
-                    <label key={key} style={styles.levelLabel}>
+                    <label key={key} style={levelLabelStyle}>
                       <input
                         type="checkbox"
                         checked={checked}

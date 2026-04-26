@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Home, ChevronRight, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'

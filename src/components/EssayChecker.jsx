@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { CheckCircle, AlertCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { recordEvent } from '../lib/progressService'
 
 export default function EssayChecker({ courseKey }) {
   const { user } = useAuth()
@@ -76,13 +77,14 @@ export default function EssayChecker({ courseKey }) {
     setFeedback(data.feedback)
     clearDraft()
 
-    // Save submission
+    // Save submission and record progress event
     await supabase.from('essay_submissions').insert({
       prompt_id: selectedPrompt.id,
       student_id: user.id,
       essay_text: essay,
       feedback: data.feedback,
     })
+    await recordEvent(supabase, user.id, courseKey, 'essay_submitted', selectedPrompt.title)
 
     setChecking(false)
   }

@@ -54,6 +54,16 @@ const btnDanger = {
   cursor: 'pointer',
 }
 
+const btnWarning = {
+  padding: '6px 12px',
+  background: 'transparent',
+  color: '#d97706',
+  border: '1px solid #d97706',
+  borderRadius: 'var(--radius-sm)',
+  fontSize: '13px',
+  cursor: 'pointer',
+}
+
 const emptyForm = { email: '', password: '', fullName: '' }
 
 function loadDraft() {
@@ -89,6 +99,13 @@ export default function AdminStudents() {
   const [managingKeys, setManagingKeys] = useState([])
   const [managingLoading, setManagingLoading] = useState(false)
   const [managingError, setManagingError] = useState(null)
+
+  // Reset password modal state
+  const [resetStudent, setResetStudent] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetError, setResetError] = useState(null)
+  const [resetSuccess, setResetSuccess] = useState(false)
 
   useEffect(() => {
     fetchStudents()
@@ -177,8 +194,24 @@ export default function AdminStudents() {
     else await fetchStudents()
   }
 
-  async function handleOpenManage(student) {
-    setManagingStudent(student)
+  async function handleResetPassword(e) {
+    e.preventDefault()
+    setResetLoading(true)
+    setResetError(null)
+    setResetSuccess(false)
+    const { data, error: fnErr } = await supabase.functions.invoke('reset-student-password', {
+      body: { userId: resetStudent.id, newPassword },
+    })
+    if (fnErr || data?.error) {
+      setResetError(fnErr?.message || data?.error)
+    } else {
+      setResetSuccess(true)
+      setNewPassword('')
+    }
+    setResetLoading(false)
+  }
+
+  async function handleOpenManage(student) {    setManagingStudent(student)
     setManagingError(null)
     setManagingLoading(true)
     const keys = await fetchEnrollments(supabase, student.id)
@@ -342,6 +375,7 @@ export default function AdminStudents() {
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <button style={btnSecondary} onClick={() => handleOpenManage(s)}>Enrollments</button>
+                    <button style={btnWarning} onClick={() => { setResetStudent(s); setNewPassword(''); setResetError(null); setResetSuccess(false) }}>Reset PW</button>
                     {s.is_active ? (
                       <button style={btnDanger} onClick={() => handleDeactivate(s)}>Deactivate</button>
                     ) : (
@@ -381,55 +415,118 @@ export default function AdminStudents() {
       {/* Manage Enrollments Modal */}
       {managingStudent && (
         <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
           <div style={{
-            background: 'var(--color-surface)',
-            borderRadius: 'var(--radius-md)',
-            padding: 'var(--space-5)',
-            width: '100%',
-            maxWidth: 600,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-            position: 'relative',
+            background: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px 28px 24px',
+            width: '100%', maxWidth: 640,
+            boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
-                Manage Enrollments — {managingStudent.full_name || managingStudent.email}
-              </h2>
-              <button
-                onClick={() => setManagingStudent(null)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--color-text-2)', lineHeight: 1 }}
-                aria-label="Close"
-              >
-                ×
-              </button>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexShrink: 0 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,99,235,0.2)', border: '1px solid rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 16 }}>📚</span>
+                  </div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#ffffff' }}>Manage Enrollments</h2>
+                </div>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', margin: 0, paddingLeft: 46 }}>
+                  {managingStudent.full_name || managingStudent.email}
+                </p>
+              </div>
+              <button onClick={() => setManagingStudent(null)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 30, height: 30, fontSize: '16px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label="Close">×</button>
             </div>
 
             {managingError && (
-              <div style={{
-                background: 'var(--color-danger-bg)',
-                color: 'var(--color-danger)',
-                border: '1px solid var(--color-danger)',
-                borderRadius: 'var(--radius-sm)',
-                padding: 'var(--space-2) var(--space-3)',
-                marginBottom: 'var(--space-3)',
-                fontSize: '13px',
-              }}>
+              <div style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', marginBottom: 16, fontSize: 13, flexShrink: 0 }}>
                 {managingError}
               </div>
             )}
 
-            {managingLoading ? (
-              <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading enrollments…</p>
-            ) : (
-              <EnrollmentPicker selectedKeys={managingKeys} onChange={handleManagingChange} />
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {managingLoading ? (
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Loading enrollments…</p>
+              ) : (
+                <EnrollmentPicker selectedKeys={managingKeys} onChange={handleManagingChange} dark />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Reset Password Modal */}
+      {resetStudent && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{
+            background: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px 28px 24px',
+            width: '100%', maxWidth: 400,
+            boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 16 }}>🔑</span>
+                  </div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#ffffff' }}>Reset Password</h2>
+                </div>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', margin: 0, paddingLeft: 46 }}>
+                  {resetStudent.full_name || resetStudent.email}
+                </p>
+              </div>
+              <button onClick={() => setResetStudent(null)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 30, height: 30, fontSize: '16px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-label="Close">×</button>
+            </div>
+
+            {resetError && (
+              <div style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', marginBottom: 16, fontSize: 13 }}>
+                {resetError}
+              </div>
             )}
+            {resetSuccess && (
+              <div style={{ background: 'rgba(34,197,94,0.15)', color: '#86efac', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', marginBottom: 16, fontSize: 13, fontWeight: 500 }}>
+                ✓ Password updated successfully.
+              </div>
+            )}
+
+            <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Min. 6 characters"
+                  style={{ width: '100%', padding: '11px 14px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', background: 'rgba(255,255,255,0.07)', color: '#ffffff', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button type="submit" disabled={resetLoading} style={{ flex: 1, padding: '11px', background: 'var(--color-accent)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 14, cursor: resetLoading ? 'not-allowed' : 'pointer', opacity: resetLoading ? 0.7 : 1, fontFamily: 'inherit' }}>
+                  {resetLoading ? 'Updating…' : 'Update password'}
+                </button>
+                <button type="button" onClick={() => setResetStudent(null)} style={{ padding: '11px 18px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)', fontWeight: 500, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
