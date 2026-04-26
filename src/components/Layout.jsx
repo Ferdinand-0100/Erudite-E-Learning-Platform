@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Home, ChevronRight, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
@@ -7,11 +7,16 @@ import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseCo
 import styles from './Layout.module.css'
 
 export default function Layout() {
-  const { user, signOut, profile } = useAuth()
+  const { user, signOut, profile, verifySession } = useAuth()
   const { enrollments, loading: enrollmentLoading } = useEnrollment()
   const isAdmin = profile?.role === 'admin'
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Verify session on every route change
+  useEffect(() => {
+    verifySession()
+  }, [location.pathname])
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 

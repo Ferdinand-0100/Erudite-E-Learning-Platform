@@ -15,9 +15,20 @@ import AdminQuiz from './pages/admin/AdminQuiz'
 import AdminStudents from './pages/admin/AdminStudents'
 
 function ProtectedRoute({ children }) {
-  const { user, loading, profile } = useAuth()
-  // Wait for both auth AND profile to resolve before making routing decisions
+  const { user, loading, profile, kickedOut } = useAuth()
   if (loading || (user && profile === null)) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-3)' }}>Loading…</div>
+  if (kickedOut) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 12, padding: 24, textAlign: 'center' }}>
+      <div style={{ fontSize: 40 }}>🔒</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text)' }}>Session ended</div>
+      <div style={{ fontSize: 14, color: 'var(--color-text-2)', maxWidth: 320 }}>
+        Your account was signed in on another device. Only one active session is allowed at a time.
+      </div>
+      <a href="/login" style={{ marginTop: 8, padding: '10px 20px', background: 'var(--color-accent)', color: 'white', borderRadius: 'var(--radius-md)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+        Sign in again
+      </a>
+    </div>
+  )
   if (!user) return <Navigate to="/login" replace />
   if (profile?.role === 'admin') return <Navigate to="/admin" replace />
   return children
