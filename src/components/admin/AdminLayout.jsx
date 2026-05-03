@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Video, FileText, HelpCircle, Users, LogOut, PenLine } from 'lucide-react'
+import { LayoutDashboard, Video, FileText, HelpCircle, Users, LogOut, PenLine, BookOpen } from 'lucide-react'
 import { useAuth } from '../../lib/AuthContext'
 import styles from './AdminLayout.module.css'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',     to: '/admin',           icon: LayoutDashboard, end: true },
-  { label: 'Videos',        to: '/admin/videos',    icon: Video },
-  { label: 'Materials',     to: '/admin/materials', icon: FileText },
-  { label: 'Quiz Questions',to: '/admin/quiz',      icon: HelpCircle },
-  { label: 'Essay Prompts', to: '/admin/essay',     icon: PenLine },
-  { label: 'Students',      to: '/admin/students',  icon: Users },
+  { label: 'Dashboard',     to: '/admin',              icon: LayoutDashboard, end: true },
+  { label: 'Videos',        to: '/admin/videos',       icon: Video },
+  { label: 'Materials',     to: '/admin/materials',    icon: FileText },
+  { label: 'Quiz Packages', to: '/admin/quiz',         icon: HelpCircle },
+  { label: 'Essay Prompts', to: '/admin/essay',        icon: PenLine },
+  { label: 'Study Guides',  to: '/admin/studyguides',  icon: BookOpen },
+  { label: 'Students',      to: '/admin/students',     icon: Users },
 ]
 
 export default function AdminLayout() {

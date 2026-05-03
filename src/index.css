@@ -1,110 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   --sidebar-width: 230px;
   --topbar-height: 56px;
-  /* Colour tokens */
-  --color-bg: #f5f4f1;
-  --color-surface: #ffffff;
-  --color-surface-2: #f0efec;
-  --color-border: rgba(0,0,0,0.08);
-  --color-border-strong: rgba(0,0,0,0.15);
-  --color-text: #1a1918;
-  --color-text-2: #5a5855;
-  --color-text-3: #9a9895;
-  --color-accent: #2563eb;
-  --color-accent-hover: #1d4ed8;
-  --color-accent-fg: #ffffff;
-  --color-success: #166534;
-  --color-success-bg: #dcfce7;
-  --color-danger: #991b1b;
-  --color-danger-bg: #fee2e2;
-  /* Typography tokens */
-  --font-size-sm: 12px;
-  --font-size-base: 14px;
-  --font-size-lg: 16px;
-  --line-height-body: 1.6;
-  /* Spacing tokens */
+
+  /* ── Colour tokens ─────────────────────────────────────────────────────── */
+  --color-bg:           #fdfbf7;   /* warm paper */
+  --color-surface:      #ffffff;   /* card fill */
+  --color-surface-2:    #fff9c4;   /* post-it yellow */
+  --color-muted:        #e5e0d8;   /* old paper / erased pencil */
+  --color-border:       #2d2d2d;   /* pencil lead */
+  --color-border-light: rgba(45,45,45,0.15);
+  --color-text:         #2d2d2d;   /* soft pencil black */
+  --color-text-2:       #5a5855;
+  --color-text-3:       #9a9895;
+  --color-accent:       #ff4d4d;   /* red correction marker */
+  --color-accent-hover: #e63e3e;
+  --color-accent-fg:    #ffffff;
+  --color-secondary:    #2d5da1;   /* blue ballpoint pen */
+  --color-success:      #166534;
+  --color-success-bg:   #dcfce7;
+  --color-danger:       #991b1b;
+  --color-danger-bg:    #fee2e2;
+
+  /* ── Typography tokens ─────────────────────────────────────────────────── */
+  --font-heading:      'Kalam', cursive;
+  --font-body:         'Patrick Hand', cursive;
+  --font-size-sm:      12px;
+  --font-size-base:    14px;
+  --font-size-lg:      16px;
+  --font-size-xl:      20px;
+  --font-size-display: 28px;
+
+  /* ── Spacing tokens ────────────────────────────────────────────────────── */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-6: 24px;
   --space-8: 32px;
-  /* Border-radius tokens */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.35);
-  --glass-blur: 18px;
-  /* Shadows */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-focus: 0 0 0 3px rgba(37,99,235,0.25);
-  /* Transitions */
-  --transition-fast: 100ms ease;
-  --transition-base: 150ms ease;
-  --transition-slow: 200ms ease;
+
+  /* ── Wobbly border-radius tokens ───────────────────────────────────────── */
+  --radius-wobbly:    255px 15px 225px 15px / 15px 225px 15px 255px;
+  --radius-wobbly-md: 15px 225px 15px 255px / 225px 15px 255px 15px;
+  --radius-wobbly-sm: 8px 4px 6px 4px / 4px 6px 4px 8px;
+  --radius-pill:      999px;
+
+  /* ── Hard-offset shadow tokens (no blur) ───────────────────────────────── */
+  --shadow-card:     4px 4px 0px 0px #2d2d2d;
+  --shadow-elevated: 8px 8px 0px 0px #2d2d2d;
+  --shadow-hover:    2px 2px 0px 0px #2d2d2d;
+  --shadow-pressed:  0px 0px 0px 0px #2d2d2d;
+
+  /* ── Transition tokens ─────────────────────────────────────────────────── */
+  --transition-fast:     100ms ease;
+  --transition-base:     150ms ease;
+  --transition-slow:     200ms ease;
   --transition-progress: 300ms ease;
-  --transition-fill: 600ms ease;
-  /* Extended font sizes */
-  --font-size-display: 24px;
-  /* Breakpoints (for reference in JS; use in media queries directly) */
-  --bp-mobile: 640px;
-  --bp-tablet: 768px;
+  --transition-fill:     600ms ease;
+
+  /* ── Skeleton tokens ───────────────────────────────────────────────────── */
+  --skeleton-bg:    rgba(45,45,45,0.06);
+  --skeleton-shine: rgba(255,255,255,0.7);
+
+  /* ── Breakpoints (reference only — use values directly in media queries) ── */
+  --bp-mobile:  640px;
+  --bp-tablet:  768px;
   --bp-desktop: 1024px;
-  /* Skeleton */
-  --skeleton-bg: rgba(255,255,255,0.45);
-  --skeleton-shine: rgba(255,255,255,0.85);
-  font-family: 'DM Sans', sans-serif;
+
+  font-family: var(--font-body);
   font-size: 15px;
   color: var(--color-text);
 }
 
-/* ─── Background image + grid overlay ─────────────────────────────────────
-   To use your own image, replace the url() value in --bg-image below.
-   Place the file in /public and reference it as url('/your-image.jpg').
-   Adjust --bg-overlay-opacity (0–1) to control how visible the grid is.
-   ───────────────────────────────────────────────────────────────────────── */
-:root {
-  --bg-image: url('/images/Secondary.jpg'); /* ← swap this path */
-  --bg-overlay-color: linear-gradient(90deg,rgba(42, 123, 155, 1) 20%, rgba(87, 199, 134, 0.473) 50%, rgba(237, 221, 83, 0.219) 100%); /* matches --color-bg */
-  --bg-grid-color: rgba(255, 255, 255, 0.392);
-  --bg-grid-size: 32px;
-}
-
+/* ── Body — paper dot texture ──────────────────────────────────────────────── */
 body {
   min-height: 100vh;
-  position: relative;
-  isolation: isolate;
+  background-color: var(--color-bg);
+  background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
-/* Layer 1: background image */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-/* Layer 2: solid tint + grid pattern on top of the image */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(var(--bg-grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--bg-grid-color) 1px, transparent 1px),
-    var(--bg-overlay-color);
-  background-size: var(--bg-grid-size) var(--bg-grid-size), var(--bg-grid-size) var(--bg-grid-size), 100% 100%;
-}
+/* ── Headings use the handwritten marker font ──────────────────────────────── */
+h1, h2, h3 { font-family: var(--font-heading); }
 
 a { color: inherit; text-decoration: none; }
 
@@ -112,16 +92,26 @@ button { font-family: inherit; cursor: pointer; appearance: none; -webkit-appear
 
 input, textarea, select { font-family: inherit; font-size: 14px; }
 
+select {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-wobbly-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 6px 10px;
+  cursor: pointer;
+  outline: none;
+}
+
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
-p, li { line-height: var(--line-height-body); }
+p, li { line-height: 1.6; }
 
-/* Scrollbar */
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--color-border-light); border-radius: 2px; }
 
-/* ─── Skeleton shimmer animation ──────────────────────────────────────────── */
+/* ── Skeleton shimmer animation ────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position:  400px 0; }
@@ -130,16 +120,16 @@ p, li { line-height: var(--line-height-body); }
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--skeleton-bg) 25%,
+    var(--skeleton-bg)    25%,
     var(--skeleton-shine) 50%,
-    var(--skeleton-bg) 75%
+    var(--skeleton-bg)    75%
   );
   background-size: 800px 100%;
   animation: shimmer 1.4s ease-in-out infinite;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-wobbly-sm);
 }
 
-/* ─── Reduced motion ───────────────────────────────────────────────────────── */
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 100ms !important;

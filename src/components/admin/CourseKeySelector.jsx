@@ -30,12 +30,15 @@ function parseCourseKey(value) {
 
 const selectStyle = {
   padding: '8px 12px',
-  border: '1px solid var(--color-border-strong)',
-  borderRadius: 'var(--radius-sm)',
-  fontFamily: 'inherit',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
+  fontFamily: 'var(--font-body)',
   fontSize: '13px',
   background: 'var(--color-surface)',
+  color: 'var(--color-text)',
   cursor: 'pointer',
+  boxShadow: 'var(--shadow-hover)',
+  outline: 'none',
 }
 
 export default function CourseKeySelector({ value, onChange }) {

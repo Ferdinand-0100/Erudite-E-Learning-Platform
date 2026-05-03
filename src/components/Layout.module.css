@@ -5,52 +5,44 @@
   background: transparent;
 }
 
-/* SIDEBAR */
+/* ── SIDEBAR ───────────────────────────────────────────────────────────────── */
 
 .sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
 
-  backdrop-filter: blur(var(--glass-blur));
-  background: var(--glass-bg);
+  background: var(--color-surface);
+  border-right: 3px solid var(--color-border);
 
-  border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-
-  box-shadow:
-    0 1px 0 rgba(0,0,0,0.03),
-    2px 0 30px rgba(0,0,0,0.06);
-
   padding-top: 4px;
 }
 
-/* LOGO */
+/* ── LOGO ──────────────────────────────────────────────────────────────────── */
 
 .logo {
   padding: 24px 22px 18px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 2px dashed var(--color-border);
 }
 
 .logoMark {
   display: block;
-  font-size: 17px;
+  font-family: var(--font-heading);
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.5px;
-  background: linear-gradient(135deg, var(--color-accent), #0ea5e9);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--color-text);
 }
 
 .logoSub {
+  font-family: var(--font-body);
   font-size: 11px;
   color: var(--color-text-3);
   margin-top: 4px;
 }
 
-/* NAV */
+/* ── NAV ───────────────────────────────────────────────────────────────────── */
 
 .nav {
   flex: 1;
@@ -59,14 +51,15 @@
 
 .sectionLabel {
   padding: 14px 14px 6px;
+  font-family: var(--font-heading);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: .09em;
   color: var(--color-text-3);
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* NAV ITEMS */
+/* ── NAV ITEMS ─────────────────────────────────────────────────────────────── */
 
 .navItem {
   display: flex;
@@ -78,7 +71,7 @@
   margin: 2px 6px;
 
   font-size: 13.5px;
-  border-radius: 8px;
+  border-radius: var(--radius-wobbly-sm);
 
   color: var(--color-text-2);
   cursor: pointer;
@@ -86,11 +79,12 @@
   transition:
     background var(--transition-base),
     color var(--transition-base),
+    box-shadow var(--transition-base),
     transform 0.05s ease;
 }
 
 .navItem:hover {
-  background: var(--color-surface-2);
+  background: var(--color-muted);
   color: var(--color-text);
 }
 
@@ -101,23 +95,11 @@
 .active {
   background: var(--color-surface-2);
   color: var(--color-text);
-  font-weight: 500;
-  position: relative;
+  font-weight: 600;
+  box-shadow: var(--shadow-hover);
 }
 
-/* Level 1 active bar — flush left */
-.active::before {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 20%;
-  bottom: 20%;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--color-accent);
-}
-
-/* ICON */
+/* ── ICON ──────────────────────────────────────────────────────────────────── */
 
 .courseIcon {
   width: 18px;
@@ -125,7 +107,7 @@
   flex-shrink: 0;
 }
 
-/* SUBMENU */
+/* ── SUBMENU ───────────────────────────────────────────────────────────────── */
 
 .submenu {
   padding-bottom: 6px;
@@ -137,43 +119,35 @@
   margin: 2px 6px;
 
   font-size: 12.8px;
-  border-radius: 6px;
+  border-radius: var(--radius-wobbly-sm);
 
   color: var(--color-text-2);
   text-decoration: none;
-  position: relative;
 
   transition:
-    background 0.15s ease,
-    color 0.15s ease,
+    background var(--transition-base),
+    color var(--transition-base),
+    box-shadow var(--transition-base),
     transform 0.05s ease;
 }
 
 .subItem:hover {
-  background: var(--color-surface-2);
+  background: var(--color-muted);
   color: var(--color-text);
 }
 
 .subActive {
   background: var(--color-surface-2);
   color: var(--color-text);
-  font-weight: 500;
-  position: relative;
+  font-weight: 600;
+  box-shadow: var(--shadow-hover);
 }
 
-/* Level 2 active bar — indented to match text start */
-.subActive::before {
-  content: '';
-  position: absolute;
-  left: 22px;
-  top: 20%;
-  bottom: 20%;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--color-accent);
-}
+/* ── SUBSUB ────────────────────────────────────────────────────────────────── */
 
-/* SUBSUB */
+.subSubmenu {
+  padding-bottom: 4px;
+}
 
 .subSubItem {
   display: block;
@@ -182,38 +156,26 @@
   margin: 1px 6px;
 
   font-size: 12.2px;
-  border-radius: 6px;
+  border-radius: var(--radius-wobbly-sm);
 
   color: var(--color-text-3);
   text-decoration: none;
-  position: relative;
 
-  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+  transition: background var(--transition-base), color var(--transition-base);
 }
 
 .subSubItem:hover {
   color: var(--color-text-2);
+  background: var(--color-muted);
 }
 
 .subSubActive {
   color: var(--color-text);
-  position: relative;
+  background: var(--color-surface-2);
+  box-shadow: var(--shadow-hover);
 }
 
-/* Level 3 active bar — further right */
-.subSubActive::before {
-  content: '';
-  position: absolute;
-  left: 36px;
-  top: 20%;
-  bottom: 20%;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--color-accent);
-  opacity: 0.7;
-}
-
-/* TAB ITEM (Level 4) */
+/* ── TAB ITEM (Level 4) ────────────────────────────────────────────────────── */
 
 .tabItem {
   display: block;
@@ -222,58 +184,52 @@
   margin: 1px 6px;
 
   font-size: 12.2px;
-  border-radius: 6px;
+  border-radius: var(--radius-wobbly-sm);
 
   color: var(--color-text-3);
   text-decoration: none;
-  position: relative;
 
-  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+  transition: background var(--transition-base), color var(--transition-base);
 }
 
 .tabItem:hover {
   color: var(--color-text-2);
+  background: var(--color-muted);
 }
 
-/* Level 4 active bar — deepest indent */
-.tabItem.subSubActive::before {
-  left: 50px;
-  width: 2px;
-  opacity: 0.5;
-}
-
-/* CHEVRON */
+/* ── CHEVRON ───────────────────────────────────────────────────────────────── */
 
 .chevronWrap {
   display: flex;
   align-items: center;
   opacity: 0.5;
-  transition: transform var(--transition-progress), opacity var(--transition-base);
+  transition: transform 180ms ease, opacity var(--transition-base);
   flex-shrink: 0;
 }
+
 .chevronWrap.chevronOpen {
   transform: rotate(90deg);
   opacity: 0.8;
 }
 
-/* FOOTER */
+/* ── FOOTER ────────────────────────────────────────────────────────────────── */
 
 .sidebarFooter {
   padding: 16px 18px;
-  border-top: 1px solid var(--color-border);
+  border-top: 2px dashed var(--color-border);
 
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-/* AVATAR */
+/* ── AVATAR ────────────────────────────────────────────────────────────────── */
 
 .avatar {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-accent), #0ea5e9);
+  border-radius: var(--radius-wobbly);
+  background: var(--color-accent);
   color: white;
   display: flex;
   align-items: center;
@@ -281,7 +237,7 @@
   font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
-  box-shadow: var(--shadow-card);
+  border: 2px solid var(--color-border);
 }
 
 .avatarInfo {
@@ -290,7 +246,7 @@
 
 .avatarName {
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .avatarRole {
@@ -299,32 +255,33 @@
 }
 
 .signOutBtn {
-  background: none;
-  border: none;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-wobbly-sm);
+  padding: 4px 8px;
 
-  color: var(--color-text-3);
+  color: var(--color-text-2);
   font-size: 15px;
   cursor: pointer;
 
-  transition: color 0.15s ease;
+  transition: background var(--transition-base), color var(--transition-base);
 }
 
 .signOutBtn:hover {
+  background: var(--color-muted);
   color: var(--color-text);
 }
 
-/* MAIN AREA */
+/* ── MAIN AREA ─────────────────────────────────────────────────────────────── */
 
 .main {
   flex: 1;
   overflow-y: auto;
-
   background: transparent;
-
   padding: 0 42px 60px;
 }
 
-/* HAMBURGER BUTTON (mobile only) */
+/* ── HAMBURGER BUTTON (mobile only) ───────────────────────────────────────── */
 
 .hamburger {
   display: none;
@@ -335,31 +292,32 @@
   height: 36px;
   padding: 6px;
   margin-bottom: 16px;
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-wobbly-sm);
   cursor: pointer;
+  box-shadow: var(--shadow-hover);
 }
 
 .hamburger span {
   display: block;
   width: 100%;
   height: 2px;
-  background: var(--color-text-2);
+  background: var(--color-text);
   border-radius: 2px;
 }
 
-/* OVERLAY (mobile) */
+/* ── OVERLAY (mobile) ──────────────────────────────────────────────────────── */
 
 .overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(45, 45, 45, 0.4);
   z-index: 99;
 }
 
-/* RESPONSIVE SIDEBAR */
+/* ── RESPONSIVE SIDEBAR ────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
   .hamburger {
@@ -382,5 +340,9 @@
 
   .sidebarOpen {
     transform: translateX(0);
+  }
+
+  .main {
+    padding: 0 20px 60px;
   }
 }

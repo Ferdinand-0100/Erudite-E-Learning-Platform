@@ -9,8 +9,8 @@ const PAGE_SIZE = 20
 const inputStyle = {
   width: '100%',
   padding: '8px 10px',
-  border: '1px solid var(--color-border-strong)',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '14px',
   background: 'var(--color-surface)',
   boxSizing: 'border-box',
@@ -28,38 +28,38 @@ const btnPrimary = {
   padding: '8px 16px',
   background: 'var(--color-accent)',
   color: '#fff',
-  border: 'none',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '14px',
   cursor: 'pointer',
 }
 
 const btnSecondary = {
   padding: '6px 12px',
-  background: 'transparent',
+  background: 'var(--color-surface)',
   color: 'var(--color-text-2)',
-  border: '1px solid var(--color-border-strong)',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '13px',
   cursor: 'pointer',
 }
 
 const btnDanger = {
   padding: '6px 12px',
-  background: 'transparent',
+  background: 'var(--color-surface)',
   color: 'var(--color-danger)',
-  border: '1px solid var(--color-danger)',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-danger)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '13px',
   cursor: 'pointer',
 }
 
 const btnWarning = {
   padding: '6px 12px',
-  background: 'transparent',
+  background: 'var(--color-surface)',
   color: '#d97706',
-  border: '1px solid #d97706',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid #d97706',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '13px',
   cursor: 'pointer',
 }
@@ -268,14 +268,14 @@ export default function AdminStudents() {
 
       {/* Create Student form */}
       <form onSubmit={handleCreate} style={{
-        background: 'rgba(255,255,255,0.92)',
-        border: '1px solid rgba(0,0,0,0.55)',
-        borderRadius: 'var(--radius-md)',
+        background: 'var(--color-surface)',
+        border: '2px solid var(--color-border)',
+        borderRadius: 'var(--radius-wobbly-sm)',
         padding: 'var(--space-4)',
         marginBottom: 'var(--space-6)',
         display: 'grid',
         gap: 'var(--space-3)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: 'var(--shadow-card)',
       }}>
         <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Create Student</h2>
 
@@ -347,7 +347,7 @@ export default function AdminStudents() {
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No students found.</p>
       ) : (
         <>
-          <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: 'var(--space-4)' }}>
+          <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)', marginBottom: 'var(--space-4)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>

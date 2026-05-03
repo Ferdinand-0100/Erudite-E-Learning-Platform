@@ -199,6 +199,12 @@
   padding: 32px 42px 60px;
 }
 
+@media (max-width: 768px) {
+  .main {
+    padding: 20px 16px 40px;
+  }
+}
+
 /* HAMBURGER BUTTON (mobile only) */
 
 .hamburger {

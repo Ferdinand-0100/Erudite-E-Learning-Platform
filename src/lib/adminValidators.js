@@ -1,6 +1,10 @@
 export function validateEmbedUrl(url) {
-  if (!url || !url.startsWith('https://www.youtube.com/embed/')) {
-    return { valid: false, error: 'URL must start with https://www.youtube.com/embed/' }
+  if (!url) return { valid: false, error: 'Video URL is required' }
+  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be')
+  const isDrive = url.includes('drive.google.com')
+  const isEmbed = url.startsWith('https://') && (url.includes('/embed/') || url.includes('/preview'))
+  if (!isYouTube && !isDrive && !isEmbed) {
+    return { valid: false, error: 'Please enter a YouTube link, Google Drive share link, or a valid embed URL' }
   }
   return { valid: true }
 }

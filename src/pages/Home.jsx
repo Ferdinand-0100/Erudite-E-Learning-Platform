@@ -30,10 +30,10 @@ export function relativeTime(dateStr) {
 }
 
 const EVENT_ICONS = {
-  video_watched: Video,
-  quiz_completed: CheckCircle,
+  video_watched:       Video,
+  quiz_completed:      CheckCircle,
   material_downloaded: FileText,
-  essay_submitted: PenLine,
+  essay_submitted:     PenLine,
 }
 
 const COURSES = Object.entries(COURSE_CONFIG).map(([key, cfg]) => {
@@ -79,7 +79,6 @@ export default function Home() {
       const map = aggregateProgress(rows, COURSE_CONFIG)
       setProgressMap(map)
       setActivity(activityRes.data ?? [])
-      // Trigger animated fill after a short delay
       setTimeout(() => setDisplayProgress(map), 50)
     }).catch(err => {
       console.error('[Home] fetch error:', err)
@@ -88,50 +87,50 @@ export default function Home() {
     })
   }, [user?.id])
 
-  const enrolledCount = enrollmentLoading ? '…' : enrollments.length
-
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="home-page">
       <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
+        @media (max-width: 768px) {
+          .home-page { padding: 20px 16px !important; }
+          .course-grid { grid-template-columns: 1fr 1fr !important; }
+        }
+        @media (max-width: 480px) {
+          .course-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
-      {/* Banner */}
+      {/* ── Banner ── */}
       <div style={styles.banner}>
         <div>
-          <h1 style={styles.bannerHeading}>{greeting}, {name} 👋</h1>
+          <h1 style={styles.bannerHeading}>{greeting}, {name}!</h1>
           <p style={styles.bannerSub}>Ready to continue your learning journey?</p>
         </div>
         <div style={styles.bannerStat}>
-          <BookOpen size={18} style={{ color: 'var(--color-accent)' }} />
+          <BookOpen size={18} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
           <span style={styles.bannerStatText}>{Object.keys(COURSE_CONFIG).length} courses available</span>
         </div>
       </div>
 
+      {/* ── Course grid ── */}
       <h2 style={styles.sectionHeading}>Your courses</h2>
-      <div style={styles.courseGrid}>
+      <div style={styles.courseGrid} className="course-grid">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: '140px' }} />
+            <div key={i} className="skeleton" style={{ height: '160px' }} />
           ))
         ) : (
           COURSES.map(c => {
             const pct = displayProgress[c.key] ?? 0
             const rawPct = progressMap[c.key] ?? 0
             const isActive = enrollmentLoading || enrollments.some(k => k.startsWith(`${c.key}_`.toLowerCase()))
+            const isHovered = hoveredCard === c.key && isActive
             return (
               <div
                 key={c.key}
                 style={{
                   ...styles.courseCard,
-                  ...(hoveredCard === c.key && isActive ? {
-                    transform: 'translateY(-2px)',
-                    boxShadow: 'var(--shadow-elevated)',
-                  } : {}),
-                  ...(!isActive ? { opacity: 0.45, cursor: 'not-allowed' } : {}),
+                  ...(isHovered ? styles.courseCardHover : {}),
+                  ...(!isActive ? styles.courseCardInactive : {}),
                 }}
                 onClick={() => isActive && navigate(c.defaultPath)}
                 onMouseEnter={() => isActive && setHoveredCard(c.key)}
@@ -156,11 +155,12 @@ export default function Home() {
         )}
       </div>
 
+      {/* ── Activity feed ── */}
       <h2 style={styles.sectionHeading}>Recent activity</h2>
       <div style={styles.activityList}>
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: '52px', margin: '8px 12px', borderRadius: 'var(--radius-md)' }} />
+            <div key={i} className="skeleton" style={{ height: '52px', margin: '8px 12px' }} />
           ))
         ) : activity.length === 0 ? (
           <div style={styles.activityItem}>
@@ -174,7 +174,9 @@ export default function Home() {
                 key={item.id ?? i}
                 style={{
                   ...styles.activityItem,
-                  borderBottom: i < activity.length - 1 ? '1px solid var(--color-border)' : 'none',
+                  borderBottom: i < activity.length - 1
+                    ? '1px dashed var(--color-border-light)'
+                    : 'none',
                 }}
               >
                 <span style={styles.activityIconWrap}>
@@ -195,113 +197,154 @@ export default function Home() {
 }
 
 const styles = {
-  page: { padding: '34px 32px', maxWidth: '900px', animation: 'fadeInUp 0.3s ease' },
+  page: {
+    padding: '34px 32px',
+    maxWidth: '900px',
+  },
   banner: {
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
-    border: '1px solid var(--glass-border)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '24px 28px',
-    marginBottom: '32px',
+    background: 'var(--color-surface)',
+    border: '3px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly)',
     boxShadow: 'var(--shadow-elevated)',
+    padding: '24px 28px',
+    marginBottom: '40px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: '12px',
+    transform: 'rotate(-1deg)',
   },
   bannerHeading: {
+    fontFamily: 'var(--font-heading)',
     fontSize: 'var(--font-size-display)',
     fontWeight: 700,
-    letterSpacing: '-0.5px',
     marginBottom: '6px',
     color: 'var(--color-text)',
   },
-  bannerSub: { fontSize: '14px', color: 'var(--color-text-2)' },
+  bannerSub: {
+    fontSize: '14px',
+    color: 'var(--color-text-2)',
+  },
   bannerStat: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    background: 'rgba(37,99,235,0.08)',
-    border: '1px solid rgba(37,99,235,0.15)',
-    borderRadius: 'var(--radius-md)',
+    background: 'var(--color-muted)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     padding: '8px 14px',
   },
-  bannerStatText: { fontSize: '13px', fontWeight: 500, color: 'var(--color-accent)' },
-  sectionHeading: {
-    fontSize: '11px',
+  bannerStatText: {
+    fontSize: '13px',
     fontWeight: 600,
-    color: 'var(--color-text-3)',
-    marginBottom: '12px',
+    color: 'var(--color-text)',
+  },
+  sectionHeading: {
+    fontFamily: 'var(--font-heading)',
+    fontSize: '16px',
+    fontWeight: 700,
+    color: 'var(--color-text-2)',
+    marginBottom: '14px',
     textTransform: 'uppercase',
-    letterSpacing: '0.08em',
+    letterSpacing: '0.06em',
   },
   courseGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-    gap: '14px',
-    marginBottom: '32px',
+    gap: '20px',
+    marginBottom: '40px',
   },
   courseCard: {
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
-    border: '1px solid var(--glass-border)',
-    borderRadius: 'var(--radius-lg)',
+    background: 'var(--color-surface)',
+    border: '3px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-md)',
+    boxShadow: 'var(--shadow-card)',
     padding: '20px',
     cursor: 'pointer',
-    transition: 'transform var(--transition-slow), box-shadow var(--transition-slow), border-color var(--transition-base)',
-    boxShadow: 'var(--shadow-card)',
+    transition: 'transform var(--transition-slow), box-shadow var(--transition-slow)',
+  },
+  courseCardHover: {
+    boxShadow: 'var(--shadow-hover)',
+    transform: 'translateY(-2px) rotate(0.5deg)',
+  },
+  courseCardInactive: {
+    opacity: 0.45,
+    cursor: 'not-allowed',
   },
   courseIconWrap: {
     width: '42px',
     height: '42px',
-    borderRadius: 'var(--radius-md)',
-    background: 'rgba(37,99,235,0.1)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    background: 'var(--color-surface-2)',
+    border: '2px solid var(--color-border)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '12px',
   },
   courseIcon: { fontSize: '22px' },
-  courseTitle: { fontSize: '15px', fontWeight: 600, marginBottom: '4px', color: 'var(--color-text)' },
-  courseDesc: { fontSize: '12px', color: 'var(--color-text-2)', marginBottom: '16px' },
+  courseTitle: {
+    fontFamily: 'var(--font-heading)',
+    fontSize: '16px',
+    fontWeight: 700,
+    marginBottom: '4px',
+    color: 'var(--color-text)',
+  },
+  courseDesc: {
+    fontSize: '12px',
+    color: 'var(--color-text-2)',
+    marginBottom: '16px',
+  },
   progressBar: {
-    height: '5px',
-    background: 'rgba(0,0,0,0.08)',
-    borderRadius: '999px',
+    height: '8px',
+    background: 'var(--color-muted)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, var(--color-accent), #0ea5e9)',
-    borderRadius: '999px',
+    background: 'var(--color-accent)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     transition: 'width var(--transition-fill)',
   },
-  progressLabel: { fontSize: '11px', color: 'var(--color-text-3)', marginTop: '6px' },
-  activityList: {
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
-    border: '1px solid var(--glass-border)',
-    borderRadius: 'var(--radius-lg)',
-    overflow: 'hidden',
-    boxShadow: 'var(--shadow-card)',
+  progressLabel: {
+    fontSize: '11px',
+    color: 'var(--color-text-3)',
+    marginTop: '6px',
   },
-  activityItem: { display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px' },
+  activityList: {
+    background: 'var(--color-surface)',
+    border: '3px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-md)',
+    boxShadow: 'var(--shadow-card)',
+    overflow: 'hidden',
+  },
+  activityItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '14px 18px',
+  },
   activityIconWrap: {
     width: '32px',
     height: '32px',
-    borderRadius: 'var(--radius-sm)',
-    background: 'rgba(37,99,235,0.08)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    border: '2px solid var(--color-border)',
+    background: 'var(--color-muted)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'var(--color-accent)',
+    color: 'var(--color-text)',
     flexShrink: 0,
   },
-  activityBody: { flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' },
+  activityBody: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
   activityText: { fontSize: '13px', fontWeight: 500 },
   activityCourse: { fontSize: '11px', color: 'var(--color-text-3)' },
   activityTime: { fontSize: '11px', color: 'var(--color-text-3)', flexShrink: 0 },

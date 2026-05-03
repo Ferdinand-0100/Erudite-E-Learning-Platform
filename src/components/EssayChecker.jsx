@@ -3,6 +3,7 @@ import { CheckCircle, AlertCircle, TrendingUp, BookOpen, MessageSquare, Lightbul
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
+import { useAppState } from '../lib/AppStateContext'
 
 export default function EssayChecker({ courseKey }) {
   const { user } = useAuth()
@@ -15,16 +16,15 @@ export default function EssayChecker({ courseKey }) {
   const [showCorrections, setShowCorrections] = useState(false)
   const [pastSubmissions, setPastSubmissions] = useState([])
 
-  const draftKey = `essay-draft-${courseKey}`
-  const savedDraft = (() => { try { return JSON.parse(sessionStorage.getItem(draftKey) || 'null') } catch { return null } })()
-  const [essay, setEssay] = useState(savedDraft?.essay ?? '')
+  // Per-prompt essay drafts — keyed by prompt ID
+  const [essayDrafts, setEssayDrafts, clearEssayDrafts] = useAppState(`essay-drafts-${courseKey}`, {})
+  const [selectedPromptId, setSelectedPromptId] = useAppState(`essay-selected-prompt-${courseKey}`, null)
 
-  function saveDraft(text) {
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ essay: text })) } catch {}
-  }
-  function clearDraft() {
-    try { sessionStorage.removeItem(draftKey) } catch {}
-  }
+  function getEssayDraft(promptId) { return essayDrafts[promptId] ?? '' }
+  function saveEssayDraft(promptId, text) { setEssayDrafts(prev => ({ ...prev, [promptId]: text })) }
+  function clearEssayDraft(promptId) { setEssayDrafts(prev => { const n = { ...prev }; delete n[promptId]; return n }) }
+
+  const [essay, setEssay] = useState('')
 
   const wordCount = essay.trim().split(/\s+/).filter(Boolean).length
 
@@ -35,8 +35,14 @@ export default function EssayChecker({ courseKey }) {
       .eq('course_key', courseKey)
       .order('sort_order')
       .then(({ data }) => {
-        setPrompts(data || [])
-        if (data?.length > 0) setSelectedPrompt(data[0])
+        const list = data || []
+        setPrompts(list)
+        if (list.length > 0) {
+          // Restore previously selected prompt, or default to first
+          const initial = list.find(p => p.id === selectedPromptId) ?? list[0]
+          setSelectedPrompt(initial)
+          setEssay(getEssayDraft(initial.id))
+        }
         setLoading(false)
       })
   }, [courseKey])
@@ -52,6 +58,15 @@ export default function EssayChecker({ courseKey }) {
       .limit(3)
       .then(({ data }) => setPastSubmissions(data || []))
   }, [selectedPrompt, user?.id])
+
+  function handlePromptSelect(p) {
+    setSelectedPromptId(p.id)
+    setSelectedPrompt(p)
+    setFeedback(null)
+    setError(null)
+    // Load this prompt's own draft — preserves work across all prompts
+    setEssay(getEssayDraft(p.id))
+  }
 
   async function handleCheck() {
     if (!essay.trim() || !selectedPrompt) return
@@ -75,7 +90,7 @@ export default function EssayChecker({ courseKey }) {
     }
 
     setFeedback(data.feedback)
-    clearDraft()
+    clearEssayDraft(selectedPrompt.id)
 
     // Save submission and record progress event
     await supabase.from('essay_submissions').insert({
@@ -120,7 +135,7 @@ export default function EssayChecker({ courseKey }) {
             {prompts.map(p => (
               <div
                 key={p.id}
-                onClick={() => { setSelectedPrompt(p); setFeedback(null); setEssay(''); clearDraft() }}
+                onClick={() => handlePromptSelect(p)}
                 style={{
                   ...styles.promptOption,
                   ...(selectedPrompt?.id === p.id ? styles.promptOptionActive : {}),
@@ -167,7 +182,7 @@ export default function EssayChecker({ courseKey }) {
         </div>
         <textarea
           value={essay}
-          onChange={e => { setEssay(e.target.value); saveDraft(e.target.value) }}
+          onChange={e => { setEssay(e.target.value); if (selectedPrompt) saveEssayDraft(selectedPrompt.id, e.target.value) }}
           placeholder="Write your essay here..."
           style={styles.textarea}
           rows={12}
@@ -183,6 +198,8 @@ export default function EssayChecker({ courseKey }) {
             opacity: (checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)) ? 0.5 : 1,
             cursor: (checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)) ? 'not-allowed' : 'pointer',
           }}
+          onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.background = 'var(--color-accent)'; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; e.currentTarget.style.transform = 'translate(2px, 2px)' } }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = '' }}
         >
           {checking ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -229,8 +246,8 @@ function ScoreBar({ score }) {
   const color = score >= 7 ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ flex: 1, height: 6, background: 'rgba(0,0,0,0.08)', borderRadius: 999, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.6s ease' }} />
+      <div style={{ flex: 1, height: 8, background: 'var(--color-muted)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.6s ease' }} />
       </div>
       <span style={{ fontSize: 13, fontWeight: 700, color, minWidth: 28 }}>{score}/10</span>
     </div>
@@ -244,17 +261,17 @@ function FeedbackPanel({ feedback, showCorrections, setShowCorrections }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Overall score */}
-      <div style={{ ...styles.card, background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)', border: '1px solid rgba(0,0,0,0.2)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', bottom: -10, right: -10, opacity: 0.1 }}>
-          <TrendingUp size={100} color="white" />
+      <div style={{ ...styles.card, background: 'var(--color-surface-2)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', bottom: -10, right: -10, opacity: 0.08 }}>
+          <TrendingUp size={100} color="var(--color-border)" />
         </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Overall Score</div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 12, fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Overall Score</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
-          <span style={{ fontSize: 52, fontWeight: 800, color: 'white', lineHeight: 1 }}>{feedback.overall_score}</span>
-          <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)' }}>/10</span>
-          <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.9)', marginLeft: 8 }}>{feedback.band_estimate}</span>
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: 52, fontWeight: 700, color: 'var(--color-accent)', lineHeight: 1 }}>{feedback.overall_score}</span>
+          <span style={{ fontSize: 18, color: 'var(--color-text-3)' }}>/10</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-2)', marginLeft: 8 }}>{feedback.band_estimate}</span>
         </div>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, margin: 0 }}>{feedback.summary}</p>
+        <p style={{ fontSize: 14, color: 'var(--color-text)', lineHeight: 1.6, margin: 0 }}>{feedback.summary}</p>
       </div>
 
       {/* Category scores */}
@@ -335,22 +352,21 @@ function FeedbackPanel({ feedback, showCorrections, setShowCorrections }) {
 
 const styles = {
   card: {
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
-    border: '1px solid var(--glass-border)',
-    borderRadius: 'var(--radius-lg)',
+    background: 'var(--color-surface)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     padding: '20px 22px',
     boxShadow: 'var(--shadow-card)',
   },
   promptCard: {
-    background: 'rgba(255,255,255,0.92)',
-    border: '1px solid rgba(0,0,0,0.55)',
-    borderRadius: 'var(--radius-lg)',
+    background: 'var(--color-surface-2)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     padding: '20px 22px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    boxShadow: 'var(--shadow-hover)',
   },
   sectionLabel: {
+    fontFamily: 'var(--font-heading)',
     fontSize: 11,
     fontWeight: 700,
     color: 'var(--color-text-3)',
@@ -360,66 +376,72 @@ const styles = {
   },
   promptOption: {
     padding: '12px 14px',
-    border: '1px solid var(--glass-border)',
-    borderRadius: 'var(--radius-md)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     cursor: 'pointer',
-    transition: 'all 0.15s',
-    background: 'rgba(255,255,255,0.4)',
+    transition: 'all var(--transition-base)',
+    background: 'var(--color-surface)',
   },
   promptOptionActive: {
-    border: '1px solid var(--color-accent)',
-    background: 'rgba(37,99,235,0.06)',
+    border: '2px solid var(--color-accent)',
+    background: 'var(--color-surface-2)',
+    boxShadow: 'var(--shadow-hover)',
+    transform: 'translate(2px, 2px)',
   },
   textarea: {
     width: '100%',
     padding: '12px 14px',
-    border: '1px solid var(--color-border-strong)',
-    borderRadius: 'var(--radius-md)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     fontSize: 14,
-    fontFamily: 'inherit',
+    fontFamily: 'var(--font-body)',
     lineHeight: 1.7,
     resize: 'vertical',
-    background: 'rgba(255,255,255,0.7)',
+    background: 'var(--color-surface)',
     color: 'var(--color-text)',
     boxSizing: 'border-box',
     outline: 'none',
+    transition: 'border-color var(--transition-base)',
   },
   checkBtn: {
     marginTop: 12,
-    padding: '11px 20px',
-    background: 'var(--color-accent)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 'var(--radius-md)',
+    padding: '12px 20px',
+    background: 'var(--color-surface)',
+    color: 'var(--color-text)',
+    border: '3px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly)',
+    fontFamily: 'var(--font-body)',
     fontWeight: 600,
     fontSize: 14,
     width: '100%',
-    fontFamily: 'inherit',
-    transition: 'background 0.15s',
+    boxShadow: 'var(--shadow-card)',
+    transition: 'background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base)',
+    cursor: 'pointer',
   },
   errorBox: {
     marginTop: 10,
     padding: '10px 12px',
     background: 'var(--color-danger-bg)',
     color: 'var(--color-danger)',
-    borderRadius: 'var(--radius-sm)',
+    border: '2px solid var(--color-danger)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     fontSize: 13,
   },
   spinner: {
     width: 14,
     height: 14,
-    border: '2px solid rgba(255,255,255,0.3)',
-    borderTopColor: 'white',
+    border: '2px solid rgba(45,45,45,0.3)',
+    borderTopColor: 'var(--color-text)',
     borderRadius: '50%',
     animation: 'spin 0.7s linear infinite',
     display: 'inline-block',
   },
   pastItem: {
     padding: '10px 12px',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-md)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     cursor: 'pointer',
-    transition: 'border-color 0.15s',
-    background: 'rgba(255,255,255,0.4)',
+    transition: 'background var(--transition-base)',
+    background: 'var(--color-surface)',
   },
 }

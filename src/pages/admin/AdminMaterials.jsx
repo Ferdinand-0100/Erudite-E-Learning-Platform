@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
+import TagInput from '../../components/admin/TagInput'
 import { validateFile } from '../../lib/adminValidators'
+import { useAppState } from '../../lib/AppStateContext'
 
 const courseKeys = Object.keys(COURSE_CONFIG)
 const firstKey = (() => {
@@ -12,17 +14,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', file: null, sort_order: 0 }
-
-function loadDraft() {
-  try { return JSON.parse(sessionStorage.getItem('admin-materials-draft') || 'null') } catch { return null }
-}
-function saveDraft(form) {
-  try { sessionStorage.setItem('admin-materials-draft', JSON.stringify({ title: form.title, sort_order: form.sort_order })) } catch {}
-}
-function clearDraft() {
-  try { sessionStorage.removeItem('admin-materials-draft') } catch {}
-}
+const emptyForm = { title: '', file: null, sort_order: 0, tags: [], difficulty: 'Beginner' }
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -38,8 +30,8 @@ function storagePathFromUrl(url) {
 const inputStyle = {
   width: '100%',
   padding: '8px 10px',
-  border: '1px solid var(--color-border-strong)',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '14px',
   background: 'var(--color-surface)',
 }
@@ -56,38 +48,38 @@ const btnPrimary = {
   padding: '8px 16px',
   background: 'var(--color-accent)',
   color: '#fff',
-  border: 'none',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '14px',
   cursor: 'pointer',
 }
 
 const btnSecondary = {
   padding: '8px 16px',
-  background: 'transparent',
+  background: 'var(--color-surface)',
   color: 'var(--color-text-2)',
-  border: '1px solid var(--color-border-strong)',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '14px',
   cursor: 'pointer',
 }
 
 const btnDanger = {
   padding: '6px 12px',
-  background: 'transparent',
+  background: 'var(--color-surface)',
   color: 'var(--color-danger)',
-  border: '1px solid var(--color-danger)',
-  borderRadius: 'var(--radius-sm)',
+  border: '2px solid var(--color-danger)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '13px',
   cursor: 'pointer',
 }
 
 const btnEdit = {
   padding: '6px 12px',
-  background: 'transparent',
-  color: 'var(--color-accent)',
-  border: '1px solid var(--color-accent)',
-  borderRadius: 'var(--radius-sm)',
+  background: 'var(--color-surface)',
+  color: 'var(--color-secondary)',
+  border: '2px solid var(--color-secondary)',
+  borderRadius: 'var(--radius-wobbly-sm)',
   fontSize: '13px',
   cursor: 'pointer',
 }
@@ -95,16 +87,24 @@ const btnEdit = {
 export default function AdminMaterials() {
   const [courseKey, setCourseKey] = useState(firstKey)
   const [materials, setMaterials] = useState([])
+  const [allTags, setAllTags] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [form, setForm] = useState(() => { const d = loadDraft(); return d ? { ...emptyForm, ...d } : emptyForm })
-  const [editingId, setEditingId] = useState(null)
+  const [form, setForm, clearForm] = useAppState('admin-materials-form', emptyForm)
+  const [editingId, setEditingId, clearEditingId] = useAppState('admin-materials-editing-id', null)
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     fetchMaterials()
   }, [courseKey])
+
+  useEffect(() => {
+    supabase.from('materials').select('tags').then(({ data }) => {
+      const tags = [...new Set((data || []).flatMap(m => m.tags || []))].sort()
+      setAllTags(tags)
+    })
+  }, [materials])
 
   async function fetchMaterials() {
     setLoading(true)
@@ -124,24 +124,21 @@ export default function AdminMaterials() {
     if (type === 'file') {
       setForm(f => ({ ...f, file: files[0] || null }))
     } else {
-      setForm(f => {
-        const next = { ...f, [name]: name === 'sort_order' ? Number(value) : value }
-        saveDraft(next)
-        return next
-      })
+      setForm(f => ({ ...f, [name]: name === 'sort_order' ? Number(value) : value }))
     }
   }
 
   function startEdit(material) {
     setEditingId(material.id)
-    setForm({ title: material.title, file: null, sort_order: material.sort_order })
+    const f = { title: material.title, file: null, sort_order: material.sort_order, tags: material.tags || [], difficulty: material.difficulty || 'Beginner' }
+    setForm(f)
     setError(null)
   }
 
   function cancelEdit() {
-    setEditingId(null)
+    clearForm()
+    clearEditingId()
     setForm(emptyForm)
-    clearDraft()
     setError(null)
   }
 
@@ -150,17 +147,17 @@ export default function AdminMaterials() {
     setError(null)
 
     if (editingId) {
-      // Edit: title + sort_order only
+      // Edit: title + sort_order + tags only
       setSubmitting(true)
       const { error: err } = await supabase
         .from('materials')
-        .update({ title: form.title, sort_order: form.sort_order })
+        .update({ title: form.title, sort_order: form.sort_order, tags: form.tags || [], difficulty: form.difficulty })
         .eq('id', editingId)
       if (err) {
         setError(err.message)
       } else {
-        setEditingId(null)
-        setForm(emptyForm)
+        clearForm()
+        clearEditingId()
         await fetchMaterials()
       }
       setSubmitting(false)
@@ -200,13 +197,15 @@ export default function AdminMaterials() {
       file_url: fileUrl,
       file_size_label: formatSize(file.size),
       sort_order: form.sort_order,
+      tags: form.tags || [],
+      difficulty: form.difficulty,
     })
 
     if (insertErr) {
       setError(insertErr.message)
     } else {
-      setForm(emptyForm)
-      clearDraft()
+      clearForm()
+      clearEditingId()
       await fetchMaterials()
     }
 
@@ -261,14 +260,14 @@ export default function AdminMaterials() {
 
       {/* Add / Edit form */}
       <form onSubmit={handleSubmit} style={{
-        background: 'rgba(255,255,255,0.92)',
-        border: '1px solid rgba(0,0,0,0.55)',
-        borderRadius: 'var(--radius-md)',
+        background: 'var(--color-surface)',
+        border: '2px solid var(--color-border)',
+        borderRadius: 'var(--radius-wobbly-sm)',
         padding: 'var(--space-4)',
         marginBottom: 'var(--space-6)',
         display: 'grid',
         gap: 'var(--space-3)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: 'var(--shadow-card)',
       }}>
         <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
           {editingId ? 'Edit Material' : 'Add Material'}
@@ -299,15 +298,30 @@ export default function AdminMaterials() {
           </div>
         )}
 
-        <div style={{ width: 120 }}>
-          <label style={labelStyle}>Sort order</label>
-          <input
-            style={inputStyle}
-            type="number"
-            name="sort_order"
-            value={form.sort_order}
-            onChange={handleField}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 'var(--space-3)' }}>
+          <div>
+            <label style={labelStyle}>Difficulty</label>
+            <select style={inputStyle} name="difficulty" value={form.difficulty} onChange={handleField}>
+              <option>Beginner</option>
+              <option>Intermediate</option>
+              <option>Advanced</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Sort order</label>
+            <input
+              style={inputStyle}
+              type="number"
+              name="sort_order"
+              value={form.sort_order}
+              onChange={handleField}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Tags</label>
+          <TagInput value={form.tags || []} onChange={tags => setForm(f => ({ ...f, tags }))} existingTags={allTags} placeholder="Add tags (e.g. Grammar, Reading)…" />
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -328,12 +342,12 @@ export default function AdminMaterials() {
       ) : materials.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No materials for this course key.</p>
       ) : (
-        <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
               <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
-              <th style={{ padding: '8px 10px', fontWeight: 600 }}>File URL</th>
+              <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
               <th style={{ padding: '8px 10px', fontWeight: 600 }}>Order</th>
               <th style={{ padding: '8px 10px' }} />
             </tr>
@@ -342,21 +356,12 @@ export default function AdminMaterials() {
             {materials.map(m => (
               <tr key={m.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <td style={{ padding: '8px 10px' }}>{m.title}</td>
-                <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', maxWidth: 260 }}>
-                  <a
-                    href={m.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'block',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      color: 'var(--color-accent)',
-                    }}
-                  >
-                    {m.file_url}
-                  </a>
+                <td style={{ padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(m.tags || []).map(t => (
+                      <span key={t} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(37,99,235,0.08)', color: 'var(--color-accent)', border: '1px solid rgba(37,99,235,0.15)' }}>{t}</span>
+                    ))}
+                  </div>
                 </td>
                 <td style={{ padding: '8px 10px' }}>{m.sort_order}</td>
                 <td style={{ padding: '8px 10px', display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>

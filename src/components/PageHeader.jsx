@@ -12,6 +12,7 @@ const styles = {
     marginBottom: '20px',
   },
   breadcrumb: {
+    fontFamily: 'var(--font-body)',
     fontSize: '11px',
     fontWeight: 600,
     color: 'var(--color-text-3)',
@@ -20,9 +21,9 @@ const styles = {
     letterSpacing: '0.06em',
   },
   title: {
+    fontFamily: 'var(--font-heading)',
     fontSize: 'var(--font-size-display)',
     fontWeight: 700,
-    letterSpacing: '-0.5px',
     color: 'var(--color-text)',
   },
 }

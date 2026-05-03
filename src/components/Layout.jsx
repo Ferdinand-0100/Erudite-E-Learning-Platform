@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Home, ChevronRight, LogOut, Settings } from 'lucide-react'
+import { Home, ChevronRight, LogOut, Settings, BookOpen } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
@@ -18,9 +18,6 @@ export default function Layout() {
   const [openMenus, setOpenMenus] = useState(
     Object.fromEntries(Object.keys(COURSE_CONFIG).map(k => [k, false]))
   )
-
-  const toggle = key =>
-    setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }))
 
   const displayName =
     user?.user_metadata?.full_name ||
@@ -67,7 +64,6 @@ export default function Layout() {
           </NavLink>
 
           <div className={styles.sectionLabel}>Courses</div>
-
           {Object.entries(COURSE_CONFIG).map(([courseKey, course]) => {
             const courseActive = location.pathname.startsWith(`/${courseKey}/`) || location.pathname === `/${courseKey}`
             // Only use openMenus state when course is NOT active — when active, URL drives expansion
@@ -184,6 +180,17 @@ export default function Layout() {
           })}
 
         </nav>
+
+        {/* Extra section */}
+        <div className={styles.sectionLabel} style={{ marginTop: 8 }}>Extra</div>
+        <NavLink
+          to="/extra"
+          className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+          onClick={() => setIsSidebarOpen(false)}
+        >
+          <BookOpen size={14} aria-hidden />
+          <span>Study Guides</span>
+        </NavLink>
 
         {/* Sidebar footer */}
         <div className={styles.sidebarFooter}>

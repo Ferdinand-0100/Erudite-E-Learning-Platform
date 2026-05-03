@@ -58,7 +58,11 @@ export default function CourseShell() {
 
   return (
     <div>
-      <style>{`@keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <style>{`
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .course-content { padding: 32px 42px 60px; animation: fadeInUp 0.2s ease; }
+        @media (max-width: 768px) { .course-content { padding: 20px 16px 40px; } }
+      `}</style>
       <CourseHeader>
         <PageHeader
           title={courseConfig.label}
@@ -108,7 +112,7 @@ export default function CourseShell() {
           tabs={TABS}
         />
       </CourseHeader>
-      <div style={{ padding: '32px 42px 60px', animation: 'fadeInUp 0.2s ease' }}>
+      <div className="course-content">
         <Outlet />
       </div>
     </div>
@@ -121,25 +125,25 @@ function LevelSelectorWithEnrollment({ levels, activeLevel, basePath, isAdmin, e
     <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
       {levels.map(level => {
         const enrolled = isAdmin || enrollmentLoading || isEnrolled(level.key)
+        const isActive = activeLevel === level.key
         return (
           <button
             key={level.key}
             style={{
               padding: '6px 16px',
-              border: activeLevel === level.key ? '1px solid var(--color-accent)' : '1px solid var(--glass-border)',
-              borderRadius: '20px',
+              border: '2px solid var(--color-border)',
+              borderRadius: 'var(--radius-wobbly-sm)',
               fontSize: '13px',
-              background: activeLevel === level.key ? 'var(--color-accent)' : 'var(--glass-bg)',
-              backdropFilter: activeLevel === level.key ? undefined : 'blur(var(--glass-blur))',
-              WebkitBackdropFilter: activeLevel === level.key ? undefined : 'blur(var(--glass-blur))',
-              color: activeLevel === level.key ? 'var(--color-accent-fg)' : 'var(--color-text-2)',
+              fontFamily: 'var(--font-body)',
+              background: isActive ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: isActive ? 'white' : 'var(--color-text-2)',
+              boxShadow: isActive ? 'var(--shadow-hover)' : 'none',
+              transform: isActive ? 'translate(2px, 2px)' : 'none',
               cursor: enrolled ? 'pointer' : 'not-allowed',
               opacity: enrolled ? 1 : 0.4,
-              transition: 'all 0.15s',
-              fontFamily: 'inherit',
+              transition: 'all var(--transition-base)',
               outline: 'none',
               appearance: 'none',
-              boxShadow: 'none',
               display: 'inline-flex',
               alignItems: 'center',
             }}
@@ -162,16 +166,14 @@ const styles = {
   pills: { display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' },
   pill: {
     padding: '6px 16px',
-    border: '1px solid var(--glass-border)',
-    borderRadius: '20px',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     fontSize: '13px',
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
+    fontFamily: 'var(--font-body)',
+    background: 'var(--color-surface)',
     color: 'var(--color-text-2)',
     cursor: 'pointer',
     transition: 'all var(--transition-base)',
-    fontFamily: 'inherit',
     outline: 'none',
     WebkitAppearance: 'none',
     MozAppearance: 'none',
@@ -182,7 +184,9 @@ const styles = {
   },
   pillActive: {
     background: 'var(--color-accent)',
-    color: 'var(--color-accent-fg)',
-    border: '1px solid var(--color-accent)',
+    color: 'white',
+    border: '2px solid var(--color-border)',
+    boxShadow: 'var(--shadow-hover)',
+    transform: 'translate(2px, 2px)',
   },
 }

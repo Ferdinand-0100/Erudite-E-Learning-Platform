@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import Home from './pages/Home'
 import CourseShell from './pages/CourseShell'
 import CoursePage from './pages/CoursePage'
+import StudyGuidePage from './pages/StudyGuidePage'
 import AdminGuard from './components/admin/AdminGuard'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -13,6 +14,7 @@ import AdminVideos from './pages/admin/AdminVideos'
 import AdminMaterials from './pages/admin/AdminMaterials'
 import AdminQuiz from './pages/admin/AdminQuiz'
 import AdminEssay from './pages/admin/AdminEssay'
+import AdminStudyGuides from './pages/admin/AdminStudyGuides'
 import AdminStudents from './pages/admin/AdminStudents'
 
 function ProtectedRoute({ children }) {
@@ -60,6 +62,7 @@ export default function App() {
         <Route path="materials" element={<AdminMaterials />} />
         <Route path="quiz" element={<AdminQuiz />} />
         <Route path="essay" element={<AdminEssay />} />
+        <Route path="studyguides" element={<AdminStudyGuides />} />
         <Route path="students" element={<AdminStudents />} />
       </Route>
       <Route
@@ -73,6 +76,7 @@ export default function App() {
         }
       >
         <Route index element={<Home />} />
+        <Route path="extra" element={<StudyGuidePage />} />
 
         {/* Backward-compat redirects — must come before the generic :course route */}
         <Route path="mandarin/:tab" element={<MandarinTabRedirect />} />

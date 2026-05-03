@@ -9,13 +9,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [btnHovered, setBtnHovered] = useState(false)
+  const [btnState, setBtnState] = useState('idle') // idle | hover | active
   const [focusedInput, setFocusedInput] = useState(null)
 
   useEffect(() => {
-    if (user) {
-      navigate('/')
-    }
+    if (user) navigate('/')
   }, [user, navigate])
 
   const handleSubmit = async (e) => {
@@ -30,6 +28,13 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const btnStyle = {
+    ...styles.btn,
+    ...(btnState === 'hover' && !loading ? styles.btnHover : {}),
+    ...(btnState === 'active' && !loading ? styles.btnActive : {}),
+    ...(loading ? styles.btnLoading : {}),
   }
 
   return (
@@ -51,7 +56,7 @@ export default function LoginPage() {
               required
               style={{
                 ...styles.input,
-                borderColor: focusedInput === 'email' ? 'var(--color-accent)' : undefined,
+                borderColor: focusedInput === 'email' ? 'var(--color-secondary)' : 'var(--color-border)',
               }}
               onFocus={() => setFocusedInput('email')}
               onBlur={() => setFocusedInput(null)}
@@ -67,7 +72,7 @@ export default function LoginPage() {
               required
               style={{
                 ...styles.input,
-                borderColor: focusedInput === 'password' ? 'var(--color-accent)' : undefined,
+                borderColor: focusedInput === 'password' ? 'var(--color-secondary)' : 'var(--color-border)',
               }}
               onFocus={() => setFocusedInput('password')}
               onBlur={() => setFocusedInput(null)}
@@ -79,9 +84,11 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{ ...styles.btn, background: btnHovered ? 'var(--color-accent-hover)' : 'var(--color-accent)' }}
-            onMouseEnter={() => setBtnHovered(true)}
-            onMouseLeave={() => setBtnHovered(false)}
+            style={btnStyle}
+            onMouseEnter={() => setBtnState('hover')}
+            onMouseLeave={() => setBtnState('idle')}
+            onMouseDown={() => setBtnState('active')}
+            onMouseUp={() => setBtnState('hover')}
           >
             {loading ? (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -106,31 +113,31 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'transparent',
     padding: '24px',
   },
   card: {
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
-    border: '1px solid var(--glass-border)',
+    background: 'var(--color-surface)',
+    border: '3px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly)',
     boxShadow: 'var(--shadow-elevated)',
-    borderRadius: 'var(--radius-lg)',
     padding: '36px 32px',
     width: '100%',
     maxWidth: '360px',
+    transform: 'rotate(1deg)',
   },
   brand: {
-    fontSize: '15px',
-    fontWeight: '700',
+    fontFamily: 'var(--font-heading)',
+    fontSize: '18px',
+    fontWeight: 700,
     color: 'var(--color-accent)',
     marginBottom: '20px',
   },
   heading: {
+    fontFamily: 'var(--font-heading)',
     fontSize: 'var(--font-size-display)',
-    fontWeight: 600,
-    letterSpacing: '-0.4px',
+    fontWeight: 700,
     marginBottom: '6px',
+    color: 'var(--color-text)',
   },
   sub: {
     fontSize: '14px',
@@ -139,41 +146,62 @@ const styles = {
   },
   form: { display: 'flex', flexDirection: 'column', gap: '14px' },
   field: { display: 'flex', flexDirection: 'column', gap: '5px' },
-  label: { fontSize: '12px', fontWeight: 500, color: 'var(--color-text-2)' },
+  label: { fontSize: '12px', fontWeight: 600, color: 'var(--color-text-2)' },
   input: {
     padding: '9px 12px',
     minHeight: '44px',
-    border: '1px solid var(--color-border-strong)',
-    borderRadius: 'var(--radius-sm)',
-    background: 'rgba(255,255,255,0.6)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    background: 'var(--color-surface)',
     color: 'var(--color-text)',
     outline: 'none',
-    transition: 'border-color 0.15s',
+    transition: 'border-color var(--transition-base)',
+    fontFamily: 'var(--font-body)',
+    fontSize: '14px',
   },
   errorBox: {
     padding: '10px 12px',
     background: 'var(--color-danger-bg)',
     color: 'var(--color-danger)',
-    borderRadius: 'var(--radius-sm)',
+    border: '2px solid var(--color-danger)',
+    borderRadius: 'var(--radius-wobbly-sm)',
     fontSize: '13px',
   },
   btn: {
     marginTop: '4px',
-    padding: '10px',
-    background: 'var(--color-accent)',
-    color: 'var(--color-accent-fg)',
-    border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    fontWeight: 500,
-    fontSize: '14px',
+    padding: '12px',
+    background: 'var(--color-surface)',
+    color: 'var(--color-text)',
+    border: '3px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly)',
+    fontFamily: 'var(--font-body)',
+    fontWeight: 600,
+    fontSize: '15px',
     cursor: 'pointer',
-    transition: 'background var(--transition-base)',
+    boxShadow: 'var(--shadow-card)',
+    transition: 'background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base)',
+  },
+  btnHover: {
+    background: 'var(--color-accent)',
+    color: 'white',
+    boxShadow: 'var(--shadow-hover)',
+    transform: 'translate(2px, 2px)',
+  },
+  btnActive: {
+    background: 'var(--color-accent)',
+    color: 'white',
+    boxShadow: 'var(--shadow-pressed)',
+    transform: 'translate(4px, 4px)',
+  },
+  btnLoading: {
+    opacity: 0.7,
+    cursor: 'not-allowed',
   },
   spinner: {
     width: '14px',
     height: '14px',
-    border: '2px solid rgba(255,255,255,0.3)',
-    borderTopColor: 'white',
+    border: '2px solid rgba(45,45,45,0.3)',
+    borderTopColor: 'var(--color-text)',
     borderRadius: '50%',
     animation: 'spin 0.7s linear infinite',
     display: 'inline-block',

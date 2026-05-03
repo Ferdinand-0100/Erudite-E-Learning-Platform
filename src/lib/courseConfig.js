@@ -16,7 +16,7 @@ export const COURSE_CONFIG = {
     defaultSubclass: 'GET',
     subclasses: {
       GET: {
-        label: 'GET',
+        label: 'GE',
         defaultLevel: 'beginner',
         levels: [
           { key: 'beginner',           label: 'Beginner' },

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
+import { useAppState } from '../../lib/AppStateContext'
 
 const courseKeys = Object.keys(COURSE_CONFIG)
 const firstKey = (() => {
@@ -14,24 +15,26 @@ const firstKey = (() => {
 
 const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, sort_order: 0 }
 
+// ── Draft persistence ─────────────────────────────────────────────────────────
+
 const inputStyle = {
   width: '100%', padding: '8px 10px',
-  border: '1px solid var(--color-border-strong)',
-  borderRadius: 'var(--radius-sm)', fontSize: '14px',
+  border: '2px solid var(--color-border)',
+  borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px',
   background: 'var(--color-surface)', boxSizing: 'border-box',
 }
 const labelStyle = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }
-const btnPrimary = { padding: '8px 16px', background: 'var(--color-accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '14px', cursor: 'pointer' }
-const btnSecondary = { padding: '8px 16px', background: 'transparent', color: 'var(--color-text-2)', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-sm)', fontSize: '14px', cursor: 'pointer' }
-const btnDanger = { padding: '6px 12px', background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', fontSize: '13px', cursor: 'pointer' }
-const btnEdit = { padding: '6px 12px', background: 'transparent', color: 'var(--color-accent)', border: '1px solid var(--color-accent)', borderRadius: 'var(--radius-sm)', fontSize: '13px', cursor: 'pointer' }
+const btnPrimary = { padding: '8px 16px', background: 'var(--color-accent)', color: '#fff', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', cursor: 'pointer' }
+const btnSecondary = { padding: '8px 16px', background: 'var(--color-surface)', color: 'var(--color-text-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', cursor: 'pointer' }
+const btnDanger = { padding: '6px 12px', background: 'var(--color-surface)', color: 'var(--color-danger)', border: '2px solid var(--color-danger)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '13px', cursor: 'pointer' }
+const btnEdit = { padding: '6px 12px', background: 'var(--color-surface)', color: 'var(--color-secondary)', border: '2px solid var(--color-secondary)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '13px', cursor: 'pointer' }
 
 export default function AdminEssay() {
   const [courseKey, setCourseKey] = useState(firstKey)
   const [prompts, setPrompts] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm, clearForm] = useAppState('admin-essay-form', emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -79,7 +82,7 @@ export default function AdminEssay() {
     setError(null)
   }
 
-  function cancelEdit() { setEditingId(null); setForm(emptyForm); setError(null) }
+  function cancelEdit() { setEditingId(null); clearForm(); setForm(emptyForm); setError(null) }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -94,7 +97,7 @@ export default function AdminEssay() {
       ;({ error: err } = await supabase.from('essay_prompts').insert(payload))
     }
     if (err) setError(err.message)
-    else { setEditingId(null); setForm(emptyForm); await fetchPrompts() }
+    else { setEditingId(null); clearForm(); await fetchPrompts() }
     setSubmitting(false)
   }
 
@@ -119,7 +122,7 @@ export default function AdminEssay() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+      <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
         <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Prompt' : 'Add Prompt'}</h2>
 
         <div>
@@ -158,7 +161,7 @@ export default function AdminEssay() {
       ) : prompts.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No prompts for this course key.</p>
       ) : (
-        <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
@@ -206,7 +209,7 @@ export default function AdminEssay() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {submissions.map(sub => (
-                <div key={sub.id} style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.55)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                <div key={sub.id} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
                   <div
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }}
                     onClick={() => setExpandedSub(expandedSub === sub.id ? null : sub.id)}

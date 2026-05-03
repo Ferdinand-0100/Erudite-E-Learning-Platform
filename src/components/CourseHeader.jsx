@@ -1,31 +1,31 @@
 /**
  * CourseHeader
- * Frosted glass band that spans the full width of the main content area,
+ * Paper-white band that spans the full width of the main content area,
  * containing the PageHeader (breadcrumb + title) and the Tabs bar.
- * Everything below this component renders on the transparent background.
+ * Bleeds out of the main padding on both desktop and mobile.
  */
 export default function CourseHeader({ children }) {
   return (
-    <div style={styles.band}>
-      <div style={styles.inner}>
-        {children}
+    <>
+      <style>{`
+        .course-header-band {
+          margin: 0 -42px;
+          background: var(--color-surface);
+          border-bottom: 3px solid var(--color-border);
+        }
+        .course-header-inner {
+          padding: 28px 42px 0;
+        }
+        @media (max-width: 768px) {
+          .course-header-band { margin: 0 -20px; }
+          .course-header-inner { padding: 20px 20px 0; }
+        }
+      `}</style>
+      <div className="course-header-band">
+        <div className="course-header-inner">
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   )
-}
-
-const styles = {
-  band: {
-    /* Bleed out of the main area's 42px side padding */
-    margin: '0 -42px',
-    backdropFilter: 'blur(var(--glass-blur))',
-    WebkitBackdropFilter: 'blur(var(--glass-blur))',
-    background: 'var(--glass-bg)',
-    borderBottom: '1px solid var(--glass-border)',
-    boxShadow: 'var(--shadow-elevated)',
-  },
-  inner: {
-    /* Re-apply horizontal padding + top padding */
-    padding: '28px 42px 0',
-  },
 }

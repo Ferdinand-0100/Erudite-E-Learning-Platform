@@ -16,7 +16,13 @@ export default function Tabs({ basePath, tabs }) {
             to={to}
             style={{
               ...styles.tab,
-              ...(isActive ? styles.tabActive : {})
+              ...(isActive ? styles.tabActive : {}),
+            }}
+            onMouseEnter={e => {
+              if (!isActive) e.currentTarget.style.background = 'var(--color-muted)'
+            }}
+            onMouseLeave={e => {
+              if (!isActive) e.currentTarget.style.background = 'transparent'
             }}
           >
             {Icon && <Icon size={14} style={{ marginRight: '6px', flexShrink: 0 }} />}
@@ -31,26 +37,30 @@ export default function Tabs({ basePath, tabs }) {
 const styles = {
   tabs: {
     display: 'flex',
-    borderBottom: '1px solid var(--glass-border)',
+    borderBottom: 'none',
     marginBottom: '0',
-    gap: '2px',
+    gap: '4px',
   },
   tab: {
     display: 'flex',
     alignItems: 'center',
     padding: '10px 16px',
     fontSize: '13.5px',
+    fontFamily: 'var(--font-body)',
     color: 'var(--color-text-2)',
     textDecoration: 'none',
     borderBottom: '2px solid transparent',
-    marginBottom: '-1px',
-    transition: 'all var(--transition-base)',
-    borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+    marginBottom: '-2px',
+    transition: 'background var(--transition-base), color var(--transition-base)',
+    borderRadius: 'var(--radius-wobbly-sm) var(--radius-wobbly-sm) 0 0',
+    background: 'transparent',
   },
   tabActive: {
-    color: 'var(--color-accent)',
-    borderBottom: '2px solid var(--color-accent)',
-    fontWeight: 600,
-    background: 'rgba(37,99,235,0.06)',
-  }
+    background: 'var(--color-surface-2)',
+    border: '2px solid var(--color-border)',
+    borderBottom: '2px solid var(--color-surface-2)',
+    boxShadow: 'var(--shadow-hover)',
+    color: 'var(--color-text)',
+    fontWeight: 700,
+  },
 }
