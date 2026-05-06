@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronUp, ImagePlus, X } from 'lucide-react'
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
+import SortableRow from '../../components/admin/SortableRow'
 import { useAppState } from '../../lib/AppStateContext'
+import { useDraggableList } from '../../lib/useDraggableList'
 
 const courseKeys = Object.keys(COURSE_CONFIG)
 const firstKey = (() => {
@@ -13,7 +17,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general', sort_order: 0 }
+const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general' }
 
 // Essay type options — maps to the edge function rubric keys
 const ESSAY_TYPE_OPTIONS = [
@@ -96,6 +100,7 @@ export default function AdminEssay() {
       .select('*')
       .eq('course_key', courseKey)
       .order('sort_order')
+      .order('created_at', { ascending: false })
     if (err) setError(err.message)
     else setPrompts(data || [])
     setLoading(false)
@@ -103,12 +108,12 @@ export default function AdminEssay() {
 
   function handleField(e) {
     const { name, value } = e.target
-    setForm(f => ({ ...f, [name]: ['min_words', 'max_words', 'sort_order'].includes(name) ? Number(value) : name === 'time_limit_minutes' ? (value === '' ? null : Number(value)) : value }))
+    setForm(f => ({ ...f, [name]: ['min_words', 'max_words'].includes(name) ? Number(value) : name === 'time_limit_minutes' ? (value === '' ? null : Number(value)) : value }))
   }
 
   function startEdit(p) {
     setEditingId(p.id)
-    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general', sort_order: p.sort_order })
+    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general' })
     setExistingImageUrl(p.image_url ?? null)
     clearImageSelection()
     setError(null)
@@ -140,7 +145,9 @@ export default function AdminEssay() {
       imageUrl = urlData.publicUrl
     }
 
-    const payload = { course_key: courseKey, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl }
+    const payload = { course_key: courseKey, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl, sort_order: editingId ? undefined : prompts.length }
+    // remove undefined keys
+    if (payload.sort_order === undefined) delete payload.sort_order
     let err
     if (editingId) {
       ;({ error: err } = await supabase.from('essay_prompts').update(payload).eq('id', editingId))
@@ -162,6 +169,16 @@ export default function AdminEssay() {
     if (err) setError(err.message)
     else await fetchPrompts()
   }
+
+  async function handleReorder(reordered) {
+    setPrompts(reordered)
+    await Promise.all(
+      reordered.map(p => supabase.from('essay_prompts').update({ sort_order: p.sort_order }).eq('id', p.id))
+    )
+  }
+
+  const { sensors, items, activeItem, handleDragStart, handleDragEnd, handleDragCancel } =
+    useDraggableList(prompts, handleReorder)
 
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
@@ -242,7 +259,7 @@ export default function AdminEssay() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
           <div>
             <label style={labelStyle}>Min words</label>
             <input style={inputStyle} type="number" name="min_words" value={form.min_words} onChange={handleField} />
@@ -254,10 +271,6 @@ export default function AdminEssay() {
           <div>
             <label style={labelStyle}>Time limit (minutes)</label>
             <input style={inputStyle} type="number" name="time_limit_minutes" value={form.time_limit_minutes ?? ''} onChange={handleField} placeholder="No limit" min={1} />
-          </div>
-          <div>
-            <label style={labelStyle}>Sort order</label>
-            <input style={inputStyle} type="number" name="sort_order" value={form.sort_order} onChange={handleField} />
           </div>
         </div>
 
@@ -275,43 +288,65 @@ export default function AdminEssay() {
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No prompts for this course key.</p>
       ) : (
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: 560 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
-                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Type</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Words</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Time</th>
-                <th style={{ padding: '8px 10px' }} />
-              </tr>
-            </thead>
-            <tbody>
-              {prompts.map(p => (
-                <tr key={p.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '8px 10px' }}>
-                    <div style={{ fontWeight: 500 }}>{p.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>{p.prompt}</div>
-                  </td>
-                  <td style={{ padding: '8px 10px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-muted)', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
-                      {ESSAY_TYPE_OPTIONS.find(o => o.value === (p.essay_type ?? 'general'))?.short ?? p.essay_type}
-                    </span>
-                  </td>
-                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{p.min_words}–{p.max_words}</td>
-                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
-                    {p.time_limit_minutes ? `${p.time_limit_minutes} min` : <span style={{ color: 'var(--color-text-3)' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                      <button style={{ ...btnEdit, fontSize: 12 }} onClick={() => fetchSubmissions(p.id)}>Submissions</button>
-                      <button style={btnEdit} onClick={() => startEdit(p)}>Edit</button>
-                      <button style={btnDanger} onClick={() => handleDelete(p.id)}>Delete</button>
-                    </div>
-                  </td>
+        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: 560 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 6px', width: 28 }} />
+                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Type</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Words</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Time</th>
+                  <th style={{ padding: '8px 10px' }} />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <SortableContext items={items.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {items.map(p => (
+                    <SortableRow key={p.id} id={p.id}>
+                      <td style={{ padding: '8px 10px' }}>
+                        <div style={{ fontWeight: 500 }}>{p.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>{p.prompt}</div>
+                      </td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-muted)', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
+                          {ESSAY_TYPE_OPTIONS.find(o => o.value === (p.essay_type ?? 'general'))?.short ?? p.essay_type}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{p.min_words}–{p.max_words}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
+                        {p.time_limit_minutes ? `${p.time_limit_minutes} min` : <span style={{ color: 'var(--color-text-3)' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <button style={{ ...btnEdit, fontSize: 12 }} onClick={() => fetchSubmissions(p.id)}>Submissions</button>
+                          <button style={btnEdit} onClick={() => startEdit(p)}>Edit</button>
+                          <button style={btnDanger} onClick={() => handleDelete(p.id)}>Delete</button>
+                        </div>
+                      </td>
+                    </SortableRow>
+                  ))}
+                </tbody>
+              </SortableContext>
+            </table>
+            <DragOverlay>
+              {activeItem && (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', background: 'var(--color-surface)', borderRadius: 'var(--radius-wobbly-sm)', boxShadow: 'var(--shadow-elevated)' }}>
+                  <tbody>
+                    <SortableRow id={activeItem.id} isOverlay>
+                      <td style={{ padding: '8px 10px', fontWeight: 500 }}>{activeItem.title}</td>
+                      <td style={{ padding: '8px 10px' }} />
+                      <td style={{ padding: '8px 10px' }} />
+                      <td style={{ padding: '8px 10px' }} />
+                      <td style={{ padding: '8px 10px' }} />
+                    </SortableRow>
+                  </tbody>
+                </table>
+              )}
+            </DragOverlay>
+          </DndContext>
+        </div>
         </div>
       )}
 

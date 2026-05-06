@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
 import TagInput from '../../components/admin/TagInput'
+import SortableRow from '../../components/admin/SortableRow'
 import { validateFile } from '../../lib/adminValidators'
 import { useAppState } from '../../lib/AppStateContext'
+import { useDraggableList } from '../../lib/useDraggableList'
 
 const courseKeys = Object.keys(COURSE_CONFIG)
 const firstKey = (() => {
@@ -14,7 +18,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', file: null, sort_order: 0, tags: [], difficulty: 'Beginner' }
+const emptyForm = { title: '', file: null, tags: [], difficulty: 'Beginner' }
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -114,6 +118,7 @@ export default function AdminMaterials() {
       .select('*')
       .eq('course_key', courseKey)
       .order('sort_order')
+      .order('created_at', { ascending: false })
     if (err) setError(err.message)
     else setMaterials(data || [])
     setLoading(false)
@@ -124,13 +129,13 @@ export default function AdminMaterials() {
     if (type === 'file') {
       setForm(f => ({ ...f, file: files[0] || null }))
     } else {
-      setForm(f => ({ ...f, [name]: name === 'sort_order' ? Number(value) : value }))
+      setForm(f => ({ ...f, [name]: value }))
     }
   }
 
   function startEdit(material) {
     setEditingId(material.id)
-    const f = { title: material.title, file: null, sort_order: material.sort_order, tags: material.tags || [], difficulty: material.difficulty || 'Beginner' }
+    const f = { title: material.title, file: null, tags: material.tags || [], difficulty: material.difficulty || 'Beginner' }
     setForm(f)
     setError(null)
   }
@@ -147,11 +152,11 @@ export default function AdminMaterials() {
     setError(null)
 
     if (editingId) {
-      // Edit: title + sort_order + tags only
+      // Edit: title + tags only
       setSubmitting(true)
       const { error: err } = await supabase
         .from('materials')
-        .update({ title: form.title, sort_order: form.sort_order, tags: form.tags || [], difficulty: form.difficulty })
+        .update({ title: form.title, tags: form.tags || [], difficulty: form.difficulty })
         .eq('id', editingId)
       if (err) {
         setError(err.message)
@@ -196,7 +201,7 @@ export default function AdminMaterials() {
       title: form.title,
       file_url: fileUrl,
       file_size_label: formatSize(file.size),
-      sort_order: form.sort_order,
+      sort_order: materials.length,
       tags: form.tags || [],
       difficulty: form.difficulty,
     })
@@ -235,6 +240,16 @@ export default function AdminMaterials() {
       await fetchMaterials()
     }
   }
+
+  async function handleReorder(reordered) {
+    setMaterials(reordered)
+    await Promise.all(
+      reordered.map(m => supabase.from('materials').update({ sort_order: m.sort_order }).eq('id', m.id))
+    )
+  }
+
+  const { sensors, items, activeItem, handleDragStart, handleDragEnd, handleDragCancel } =
+    useDraggableList(materials, handleReorder)
 
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
@@ -298,8 +313,7 @@ export default function AdminMaterials() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 'var(--space-3)' }}>
-          <div>
+        <div>
             <label style={labelStyle}>Difficulty</label>
             <select style={inputStyle} name="difficulty" value={form.difficulty} onChange={handleField}>
               <option>Beginner</option>
@@ -307,17 +321,6 @@ export default function AdminMaterials() {
               <option>Advanced</option>
             </select>
           </div>
-          <div>
-            <label style={labelStyle}>Sort order</label>
-            <input
-              style={inputStyle}
-              type="number"
-              name="sort_order"
-              value={form.sort_order}
-              onChange={handleField}
-            />
-          </div>
-        </div>
 
         <div>
           <label style={labelStyle}>Tags</label>
@@ -342,36 +345,54 @@ export default function AdminMaterials() {
       ) : materials.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No materials for this course key.</p>
       ) : (
-        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
-              <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
-              <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
-              <th style={{ padding: '8px 10px', fontWeight: 600 }}>Order</th>
-              <th style={{ padding: '8px 10px' }} />
-            </tr>
-          </thead>
-          <tbody>
-            {materials.map(m => (
-              <tr key={m.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <td style={{ padding: '8px 10px' }}>{m.title}</td>
-                <td style={{ padding: '8px 10px' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {(m.tags || []).map(t => (
-                      <span key={t} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(37,99,235,0.08)', color: 'var(--color-accent)', border: '1px solid rgba(37,99,235,0.15)' }}>{t}</span>
-                    ))}
-                  </div>
-                </td>
-                <td style={{ padding: '8px 10px' }}>{m.sort_order}</td>
-                <td style={{ padding: '8px 10px', display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                  <button style={btnEdit} onClick={() => startEdit(m)}>Edit</button>
-                  <button style={btnDanger} onClick={() => handleDelete(m)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 6px', width: 28 }} />
+                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
+                  <th style={{ padding: '8px 10px' }} />
+                </tr>
+              </thead>
+              <SortableContext items={items.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {items.map(m => (
+                    <SortableRow key={m.id} id={m.id}>
+                      <td style={{ padding: '8px 10px' }}>{m.title}</td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {(m.tags || []).map(t => (
+                            <span key={t} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(37,99,235,0.08)', color: 'var(--color-accent)', border: '1px solid rgba(37,99,235,0.15)' }}>{t}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <button style={btnEdit} onClick={() => startEdit(m)}>Edit</button>
+                          <button style={btnDanger} onClick={() => handleDelete(m)}>Delete</button>
+                        </div>
+                      </td>
+                    </SortableRow>
+                  ))}
+                </tbody>
+              </SortableContext>
+            </table>
+            <DragOverlay>
+              {activeItem && (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', background: 'var(--color-surface)', borderRadius: 'var(--radius-wobbly-sm)', boxShadow: 'var(--shadow-elevated)' }}>
+                  <tbody>
+                    <SortableRow id={activeItem.id} isOverlay>
+                      <td style={{ padding: '8px 10px', fontWeight: 500 }}>{activeItem.title}</td>
+                      <td style={{ padding: '8px 10px' }} />
+                      <td style={{ padding: '8px 10px' }} />
+                    </SortableRow>
+                  </tbody>
+                </table>
+              )}
+            </DragOverlay>
+          </DndContext>
         </div>
       )}
     </div>

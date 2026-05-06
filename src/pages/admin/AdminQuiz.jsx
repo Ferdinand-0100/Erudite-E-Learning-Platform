@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, Edit2 } from 'lucide-react'
+import { ArrowLeft, Trash2, Edit2 } from 'lucide-react'
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
 import TagInput from '../../components/admin/TagInput'
 import FillBlankEditor from '../../components/admin/FillBlankEditor'
+import SortableRow from '../../components/admin/SortableRow'
+import SortableCard from '../../components/admin/SortableCard'
 import { validateQuestion, validateAnswerIndex } from '../../lib/adminValidators'
 import { useAppState } from '../../lib/AppStateContext'
+import { useDraggableList } from '../../lib/useDraggableList'
 
 const courseKeys = Object.keys(COURSE_CONFIG)
 const firstKey = (() => {
@@ -16,9 +21,9 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyPackageForm = { title: '', description: '', difficulty: 'Beginner', tags: [], sort_order: 0 }
-const emptyMCQ = { question: '', options: ['', '', '', ''], correct_answer_index: 0, explanation: '', sort_order: 0 }
-const emptyFITB = { paragraph: '', answers: [], sort_order: 0 }
+const emptyPackageForm = { title: '', description: '', difficulty: 'Beginner', tags: [] }
+const emptyMCQ = { question: '', options: ['', '', '', ''], correct_answer_index: 0, explanation: '' }
+const emptyFITB = { paragraph: '', answers: [] }
 
 // ── Draft persistence helpers ─────────────────────────────────────────────────
 
@@ -76,6 +81,7 @@ export default function AdminQuiz() {
       .select('*, quiz_questions(count)')
       .eq('course_key', courseKey)
       .order('sort_order')
+      .order('created_at', { ascending: false })
     if (err) setError(err.message)
     else setPackages((data || []).map(p => ({ ...p, question_count: p.quiz_questions?.[0]?.count ?? 0 })))
     setLoading(false)
@@ -88,6 +94,7 @@ export default function AdminQuiz() {
       .select('*')
       .eq('package_id', pkgId)
       .order('sort_order')
+      .order('created_at', { ascending: false })
     setQuestions(data || [])
     setQLoading(false)
   }
@@ -113,7 +120,7 @@ export default function AdminQuiz() {
     if (!pkgForm.title.trim()) { setError('Title is required'); return }
     setPkgSubmitting(true)
     setError(null)
-    const payload = { course_key: courseKey, title: pkgForm.title.trim(), description: pkgForm.description.trim() || null, difficulty: pkgForm.difficulty, tags: pkgForm.tags, sort_order: pkgForm.sort_order }
+    const payload = { course_key: courseKey, title: pkgForm.title.trim(), description: pkgForm.description.trim() || null, difficulty: pkgForm.difficulty, tags: pkgForm.tags, ...(editingPkgId ? {} : { sort_order: packages.length }) }
     let err
     if (editingPkgId) { ;({ error: err } = await supabase.from('quiz_packages').update(payload).eq('id', editingPkgId)) }
     else { ;({ error: err } = await supabase.from('quiz_packages').insert(payload)) }
@@ -124,7 +131,7 @@ export default function AdminQuiz() {
 
   function startEditPkg(pkg) {
     setEditingPkgId(pkg.id)
-    setPkgForm({ title: pkg.title, description: pkg.description || '', difficulty: pkg.difficulty, tags: pkg.tags || [], sort_order: pkg.sort_order })
+    setPkgForm({ title: pkg.title, description: pkg.description || '', difficulty: pkg.difficulty, tags: pkg.tags || [] })
     setError(null)
   }
 
@@ -146,12 +153,12 @@ export default function AdminQuiz() {
       if (!qCheck.valid) { setQError(qCheck.error); return }
       const aCheck = validateAnswerIndex(mcqForm.correct_answer_index)
       if (!aCheck.valid) { setQError(aCheck.error); return }
-      payload = { package_id: selectedPkg.id, course_key: courseKey, question_type: 'mcq', question: mcqForm.question.trim(), options: mcqForm.options, correct_answer_index: mcqForm.correct_answer_index, explanation: mcqForm.explanation.trim() || null, sort_order: mcqForm.sort_order }
+      payload = { package_id: selectedPkg.id, course_key: courseKey, question_type: 'mcq', question: mcqForm.question.trim(), options: mcqForm.options, correct_answer_index: mcqForm.correct_answer_index, explanation: mcqForm.explanation.trim() || null, ...(editingQId ? {} : { sort_order: questions.length }) }
     } else {
       if (!fitbForm.paragraph.trim()) { setQError('Paragraph text is required.'); return }
       if (fitbForm.answers.length === 0) { setQError('Add at least one blank.'); return }
       if (fitbForm.answers.some(a => !a.trim())) { setQError('All blanks must have an answer.'); return }
-      payload = { package_id: selectedPkg.id, course_key: courseKey, question_type: 'fitb', question: fitbForm.paragraph.trim(), options: fitbForm.answers, correct_answer_index: 0, explanation: null, sort_order: fitbForm.sort_order }
+      payload = { package_id: selectedPkg.id, course_key: courseKey, question_type: 'fitb', question: fitbForm.paragraph.trim(), options: fitbForm.answers, correct_answer_index: 0, explanation: null, ...(editingQId ? {} : { sort_order: questions.length }) }
     }
     setQSubmitting(true)
     let err
@@ -167,8 +174,8 @@ export default function AdminQuiz() {
     setQError(null)
     const type = q.question_type || 'mcq'
     setQuestionType(type)
-    if (type === 'fitb') setFitbForm({ paragraph: q.question, answers: Array.isArray(q.options) ? [...q.options] : [], sort_order: q.sort_order })
-    else setMcqForm({ question: q.question, options: Array.isArray(q.options) ? [...q.options] : ['', '', '', ''], correct_answer_index: q.correct_answer_index, explanation: q.explanation || '', sort_order: q.sort_order })
+    if (type === 'fitb') setFitbForm({ paragraph: q.question, answers: Array.isArray(q.options) ? [...q.options] : [] })
+    else setMcqForm({ question: q.question, options: Array.isArray(q.options) ? [...q.options] : ['', '', '', ''], correct_answer_index: q.correct_answer_index, explanation: q.explanation || '' })
   }
 
   function cancelEditQ() { setEditingQId(null); clearMcqForm(); clearFitbForm(); setQError(null) }
@@ -181,6 +188,26 @@ export default function AdminQuiz() {
   }
 
   const difficultyColors = { Beginner: { bg: '#dcfce7', color: '#166534' }, Intermediate: { bg: '#fef3c7', color: '#92400e' }, Advanced: { bg: '#fee2e2', color: '#991b1b' } }
+
+  async function handleReorderPackages(reordered) {
+    setPackages(reordered)
+    await Promise.all(reordered.map(p => supabase.from('quiz_packages').update({ sort_order: p.sort_order }).eq('id', p.id)))
+  }
+
+  async function handleReorderQuestions(reordered) {
+    setQuestions(reordered)
+    await Promise.all(reordered.map(q => supabase.from('quiz_questions').update({ sort_order: q.sort_order }).eq('id', q.id)))
+  }
+
+  const {
+    sensors: pkgSensors, items: pkgItems, activeItem: activePkg,
+    handleDragStart: pkgDragStart, handleDragEnd: pkgDragEnd, handleDragCancel: pkgDragCancel,
+  } = useDraggableList(packages, handleReorderPackages)
+
+  const {
+    sensors: qSensors, items: qItems, activeItem: activeQ,
+    handleDragStart: qDragStart, handleDragEnd: qDragEnd, handleDragCancel: qDragCancel,
+  } = useDraggableList(questions, handleReorderQuestions)
 
   // ── RENDER: Package drill-in ──────────────────────────────
 
@@ -227,7 +254,7 @@ export default function AdminQuiz() {
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                 <div>
                   <label style={labelStyle}>Correct Answer</label>
                   <select style={inputStyle} value={mcqForm.correct_answer_index} onChange={e => { const v = Number(e.target.value); setMcqForm(f => ({ ...f, correct_answer_index: v })) }}>
@@ -238,10 +265,6 @@ export default function AdminQuiz() {
                   <label style={labelStyle}>Explanation (optional)</label>
                   <textarea style={{ ...inputStyle, minHeight: 38, resize: 'vertical' }} value={mcqForm.explanation} onChange={e => { const v = e.target.value; setMcqForm(f => ({ ...f, explanation: v })) }} placeholder="Optional explanation" />
                 </div>
-                <div>
-                  <label style={labelStyle}>Sort order</label>
-                  <input style={inputStyle} type="number" value={mcqForm.sort_order} onChange={e => { const v = Number(e.target.value); setMcqForm(f => ({ ...f, sort_order: v })) }} />
-                </div>
               </div>
             </>
           )}
@@ -249,10 +272,6 @@ export default function AdminQuiz() {
           {questionType === 'fitb' && (
             <>
               <FillBlankEditor value={{ paragraph: fitbForm.paragraph, answers: fitbForm.answers }} onChange={({ paragraph, answers }) => { setFitbForm(f => ({ ...f, paragraph, answers })) }} />
-              <div style={{ maxWidth: 120 }}>
-                <label style={labelStyle}>Sort order</label>
-                <input style={inputStyle} type="number" value={fitbForm.sort_order} onChange={e => { const v = Number(e.target.value); setFitbForm(f => ({ ...f, sort_order: v })) }} />
-              </div>
             </>
           )}
 
@@ -269,35 +288,53 @@ export default function AdminQuiz() {
           <p style={{ color: 'var(--color-text-3)', fontSize: 14 }}>No questions yet. Add your first question above.</p>
         ) : (
           <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
-                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Type</th>
-                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Question</th>
-                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Order</th>
-                  <th style={{ padding: '8px 10px' }} />
-                </tr>
-              </thead>
-              <tbody>
-                {questions.map(q => (
-                  <tr key={q.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '8px 10px' }}>
-                      <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: q.question_type === 'fitb' ? '#fef3c7' : '#dbeafe', color: q.question_type === 'fitb' ? '#92400e' : '#1e40af' }}>
-                        {q.question_type === 'fitb' ? 'Fill Blank' : 'MCQ'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '8px 10px', maxWidth: 400 }}>
-                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.question}</span>
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>{q.sort_order}</td>
-                    <td style={{ padding: '8px 10px', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button style={btnEdit} onClick={() => startEditQ(q)}>Edit</button>
-                      <button style={btnDanger} onClick={() => handleDeleteQ(q.id)}>Delete</button>
-                    </td>
+            <DndContext sensors={qSensors} collisionDetection={closestCenter} onDragStart={qDragStart} onDragEnd={qDragEnd} onDragCancel={qDragCancel}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 6px', width: 28 }} />
+                    <th style={{ padding: '8px 10px', fontWeight: 600 }}>Type</th>
+                    <th style={{ padding: '8px 10px', fontWeight: 600 }}>Question</th>
+                    <th style={{ padding: '8px 10px' }} />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <SortableContext items={qItems.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                  <tbody>
+                    {qItems.map(q => (
+                      <SortableRow key={q.id} id={q.id}>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: q.question_type === 'fitb' ? '#fef3c7' : '#dbeafe', color: q.question_type === 'fitb' ? '#92400e' : '#1e40af' }}>
+                            {q.question_type === 'fitb' ? 'Fill Blank' : 'MCQ'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 10px', maxWidth: 400 }}>
+                          <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.question}</span>
+                        </td>
+                        <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button style={btnEdit} onClick={() => startEditQ(q)}>Edit</button>
+                            <button style={btnDanger} onClick={() => handleDeleteQ(q.id)}>Delete</button>
+                          </div>
+                        </td>
+                      </SortableRow>
+                    ))}
+                  </tbody>
+                </SortableContext>
+              </table>
+              <DragOverlay>
+                {activeQ && (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, background: 'var(--color-surface)', borderRadius: 'var(--radius-wobbly-sm)', boxShadow: 'var(--shadow-elevated)' }}>
+                    <tbody>
+                      <SortableRow id={activeQ.id} isOverlay>
+                        <td style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700 }}>{activeQ.question_type === 'fitb' ? 'Fill Blank' : 'MCQ'}</td>
+                        <td style={{ padding: '8px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeQ.question}</td>
+                        <td style={{ padding: '8px 10px' }} />
+                      </SortableRow>
+                    </tbody>
+                  </table>
+                )}
+              </DragOverlay>
+            </DndContext>
           </div>
         )}
       </div>
@@ -335,14 +372,10 @@ export default function AdminQuiz() {
           <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={pkgForm.description} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, description: v })) }} placeholder="Brief description of this quiz package" />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }}>
           <div>
             <label style={labelStyle}>Tags</label>
             <TagInput value={pkgForm.tags} onChange={tags => { setPkgForm(f => ({ ...f, tags })) }} existingTags={allTags} placeholder="Add tags…" />
-          </div>
-          <div>
-            <label style={labelStyle}>Sort order</label>
-            <input style={inputStyle} type="number" value={pkgForm.sort_order} onChange={e => { const v = Number(e.target.value); setPkgForm(f => ({ ...f, sort_order: v })) }} />
           </div>
         </div>
 
@@ -360,34 +393,55 @@ export default function AdminQuiz() {
       ) : packages.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: 14 }}>No quiz packages yet. Create your first one above.</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-          {packages.map(pkg => {
-            const dc = difficultyColors[pkg.difficulty] || difficultyColors.Beginner
-            return (
-              <div key={pkg.id} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 18, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{pkg.title}</div>
-                    {pkg.description && <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>{pkg.description}</div>}
+        <DndContext sensors={pkgSensors} collisionDetection={closestCenter} onDragStart={pkgDragStart} onDragEnd={pkgDragEnd} onDragCancel={pkgDragCancel}>
+          <SortableContext items={pkgItems.map(p => p.id)} strategy={rectSortingStrategy}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+              {pkgItems.map(pkg => {
+                const dc = difficultyColors[pkg.difficulty] || difficultyColors.Beginner
+                return (
+                  <SortableCard key={pkg.id} id={pkg.id}>
+                    <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: '18px 18px 18px 34px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{pkg.title}</div>
+                          {pkg.description && <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>{pkg.description}</div>}
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: dc.bg, color: dc.color, flexShrink: 0 }}>{pkg.difficulty}</span>
+                      </div>
+                      {(pkg.tags || []).length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {pkg.tags.map(t => <span key={t} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(37,99,235,0.08)', color: 'var(--color-accent)', border: '1px solid rgba(37,99,235,0.15)' }}>{t}</span>)}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                        <button style={{ ...btnPrimary, flex: 1, fontSize: 13, padding: '7px 12px' }} onClick={() => openPackage(pkg)}>
+                          Open ({pkg.question_count ?? '…'} Qs)
+                        </button>
+                        <button style={{ ...btnEdit, padding: '7px 10px' }} onClick={() => startEditPkg(pkg)} title="Edit package"><Edit2 size={13} /></button>
+                        <button style={{ ...btnDanger, padding: '7px 10px' }} onClick={() => handleDeletePkg(pkg.id)} title="Delete package"><Trash2 size={13} /></button>
+                      </div>
+                    </div>
+                  </SortableCard>
+                )
+              })}
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activePkg && (() => {
+              const dc = difficultyColors[activePkg.difficulty] || difficultyColors.Beginner
+              return (
+                <SortableCard id={activePkg.id} isOverlay>
+                  <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: '18px 18px 18px 34px', boxShadow: 'var(--shadow-elevated)' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>{activePkg.title}</div>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: dc.bg, color: dc.color }}>{activePkg.difficulty}</span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: dc.bg, color: dc.color, flexShrink: 0 }}>{pkg.difficulty}</span>
-                </div>
-                {(pkg.tags || []).length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {pkg.tags.map(t => <span key={t} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(37,99,235,0.08)', color: 'var(--color-accent)', border: '1px solid rgba(37,99,235,0.15)' }}>{t}</span>)}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-                  <button style={{ ...btnPrimary, flex: 1, fontSize: 13, padding: '7px 12px' }} onClick={() => openPackage(pkg)}>
-                    Open ({pkg.question_count ?? '…'} Qs)
-                  </button>
-                  <button style={{ ...btnEdit, padding: '7px 10px' }} onClick={() => startEditPkg(pkg)} title="Edit package"><Edit2 size={13} /></button>
-                  <button style={{ ...btnDanger, padding: '7px 10px' }} onClick={() => handleDeletePkg(pkg.id)} title="Delete package"><Trash2 size={13} /></button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                </SortableCard>
+              )
+            })()}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   )
