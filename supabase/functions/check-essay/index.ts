@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { essay, prompt, minWords, maxWords, promptId, essayType = 'general', imageBase64, imageMimeType } = await req.json()
+    const { essay, prompt, minWords, maxWords, promptId, essayType = 'general', imageUrl } = await req.json()
 
     // ── Rate limit check ────────────────────────────────────────────────────
     const dailyLimit = parseInt(Deno.env.get('ESSAY_DAILY_LIMIT') ?? '3', 10)
@@ -197,7 +197,27 @@ Deno.serve(async (req) => {
 
     const wordCount = essay.trim().split(/\s+/).filter(Boolean).length
     const systemPrompt = getSystemPrompt(essayType)
-    const hasImage = essayType === 'ielts_task1_academic' && !!imageBase64
+
+    // Fetch and encode image server-side if a URL was provided
+    let imageBase64: string | null = null
+    let imageMimeType: string = 'image/jpeg'
+    if (essayType === 'ielts_task1_academic' && imageUrl) {
+      try {
+        const imgRes = await fetch(imageUrl)
+        if (imgRes.ok) {
+          const buffer = await imgRes.arrayBuffer()
+          const bytes = new Uint8Array(buffer)
+          let binary = ''
+          for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+          imageBase64 = btoa(binary)
+          imageMimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
+        }
+      } catch {
+        // If image fetch fails, continue without it
+      }
+    }
+
+    const hasImage = !!imageBase64
 
     // Use vision model when an image is provided, text model otherwise
     const model = hasImage

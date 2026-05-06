@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ChevronDown, ChevronUp, ImagePlus, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
@@ -48,6 +48,26 @@ export default function AdminEssay() {
   const [editingId, setEditingId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Image upload state
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [existingImageUrl, setExistingImageUrl] = useState(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const imageInputRef = useRef(null)
+
+  function handleImagePick(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    e.target.value = ''
+  }
+
+  function clearImageSelection() {
+    setImageFile(null)
+    setImagePreview(null)
+  }
+
   // Submissions viewer
   const [selectedPromptId, setSelectedPromptId] = useState(null)
   const [submissions, setSubmissions] = useState([])
@@ -89,17 +109,38 @@ export default function AdminEssay() {
   function startEdit(p) {
     setEditingId(p.id)
     setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general', sort_order: p.sort_order })
+    setExistingImageUrl(p.image_url ?? null)
+    clearImageSelection()
     setError(null)
   }
 
-  function cancelEdit() { setEditingId(null); clearForm(); setForm(emptyForm); setError(null) }
+  function cancelEdit() {
+    setEditingId(null); clearForm(); setForm(emptyForm)
+    setExistingImageUrl(null); clearImageSelection(); setError(null)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.title.trim() || !form.prompt.trim()) { setError('Title and prompt are required.'); return }
     setSubmitting(true)
     setError(null)
-    const payload = { course_key: courseKey, ...form, title: form.title.trim(), prompt: form.prompt.trim() }
+
+    // Upload image to Storage if a new file was selected
+    let imageUrl = existingImageUrl ?? null
+    if (imageFile) {
+      setUploadingImage(true)
+      const ext = imageFile.name.split('.').pop()
+      const path = `essay-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadErr } = await supabase.storage
+        .from('essay-images')
+        .upload(path, imageFile, { upsert: false, contentType: imageFile.type })
+      setUploadingImage(false)
+      if (uploadErr) { setError(`Image upload failed: ${uploadErr.message}`); setSubmitting(false); return }
+      const { data: urlData } = supabase.storage.from('essay-images').getPublicUrl(path)
+      imageUrl = urlData.publicUrl
+    }
+
+    const payload = { course_key: courseKey, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl }
     let err
     if (editingId) {
       ;({ error: err } = await supabase.from('essay_prompts').update(payload).eq('id', editingId))
@@ -107,7 +148,11 @@ export default function AdminEssay() {
       ;({ error: err } = await supabase.from('essay_prompts').insert(payload))
     }
     if (err) setError(err.message)
-    else { setEditingId(null); clearForm(); await fetchPrompts() }
+    else {
+      setEditingId(null); clearForm(); setForm(emptyForm)
+      setExistingImageUrl(null); clearImageSelection()
+      await fetchPrompts()
+    }
     setSubmitting(false)
   }
 
@@ -154,6 +199,49 @@ export default function AdminEssay() {
           </select>
         </div>
 
+        {/* Image upload — only for IELTS Task 1 Academic */}
+        {(form.essay_type === 'ielts_task1_academic') && (
+          <div>
+            <label style={labelStyle}>Chart / graph / diagram image</label>
+            <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImagePick} />
+            {(imagePreview || existingImageUrl) ? (
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <img
+                  src={imagePreview ?? existingImageUrl}
+                  alt="Prompt chart"
+                  style={{ maxWidth: '100%', maxHeight: 240, border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', display: 'block', boxShadow: 'var(--shadow-card)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { clearImageSelection(); setExistingImageUrl(null) }}
+                  style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, border: '2px solid var(--color-border)', borderRadius: '50%', background: 'var(--color-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-hover)' }}
+                  title="Remove image"
+                >
+                  <X size={12} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  style={{ ...btnSecondary, marginTop: 8, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <ImagePlus size={13} /> Replace image
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-muted)', color: 'var(--color-text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)' }}
+              >
+                <ImagePlus size={15} /> Upload chart, graph, or diagram
+              </button>
+            )}
+            <p style={{ fontSize: 11, color: 'var(--color-text-3)', marginTop: 6 }}>
+              Students will see this image alongside the prompt. The AI will also use it to evaluate their description.
+            </p>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px', gap: 'var(--space-3)' }}>
           <div>
             <label style={labelStyle}>Min words</label>
@@ -174,7 +262,9 @@ export default function AdminEssay() {
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button type="submit" style={btnPrimary} disabled={submitting}>{editingId ? 'Update' : 'Add Prompt'}</button>
+          <button type="submit" style={btnPrimary} disabled={submitting || uploadingImage}>
+            {uploadingImage ? 'Uploading image…' : submitting ? 'Saving…' : editingId ? 'Update' : 'Add Prompt'}
+          </button>
           {editingId && <button type="button" style={btnSecondary} onClick={cancelEdit}>Cancel</button>}
         </div>
       </form>
