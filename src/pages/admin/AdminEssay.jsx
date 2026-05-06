@@ -17,12 +17,12 @@ const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_
 
 // Essay type options — maps to the edge function rubric keys
 const ESSAY_TYPE_OPTIONS = [
-  { value: 'general',              label: 'General English (GET)' },
-  { value: 'ielts_task1_academic', label: 'IELTS Task 1 — Academic (graph/chart)' },
-  { value: 'ielts_task1_general',  label: 'IELTS Task 1 — General Training (letter)' },
-  { value: 'ielts_task2',          label: 'IELTS Task 2 — Essay' },
-  { value: 'pte_summarize',        label: 'PTE — Summarize Written Text' },
-  { value: 'pte_essay',            label: 'PTE — Write Essay' },
+  { value: 'general',              label: 'General English (GET)',                    short: 'GET' },
+  { value: 'ielts_task1_academic', label: 'IELTS Task 1 — Academic (graph/chart)',    short: 'IELTS T1 Academic' },
+  { value: 'ielts_task1_general',  label: 'IELTS Task 1 — General Training (letter)', short: 'IELTS T1 General' },
+  { value: 'ielts_task2',          label: 'IELTS Task 2 — Essay',                     short: 'IELTS T2' },
+  { value: 'pte_summarize',        label: 'PTE — Summarize Written Text',             short: 'PTE Summarize' },
+  { value: 'pte_essay',            label: 'PTE — Write Essay',                        short: 'PTE Essay' },
 ]
 
 // ── Draft persistence ─────────────────────────────────────────────────────────
@@ -274,39 +274,39 @@ export default function AdminEssay() {
       ) : prompts.length === 0 ? (
         <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No prompts for this course key.</p>
       ) : (
-        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+        <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: 560 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Type</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Words</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Time limit</th>
-                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Order</th>
+                <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Type</th>
+                <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Words</th>
+                <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Time</th>
                 <th style={{ padding: '8px 10px' }} />
               </tr>
             </thead>
             <tbody>
               {prompts.map(p => (
                 <tr key={p.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '8px 10px', maxWidth: 400 }}>
+                  <td style={{ padding: '8px 10px' }}>
                     <div style={{ fontWeight: 500 }}>{p.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360 }}>{p.prompt}</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>{p.prompt}</div>
                   </td>
                   <td style={{ padding: '8px 10px' }}>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-muted)', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
-                      {ESSAY_TYPE_OPTIONS.find(o => o.value === (p.essay_type ?? 'general'))?.label ?? p.essay_type}
+                      {ESSAY_TYPE_OPTIONS.find(o => o.value === (p.essay_type ?? 'general'))?.short ?? p.essay_type}
                     </span>
                   </td>
-                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>{p.min_words}–{p.max_words}</td>
-                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>
+                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{p.min_words}–{p.max_words}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
                     {p.time_limit_minutes ? `${p.time_limit_minutes} min` : <span style={{ color: 'var(--color-text-3)' }}>—</span>}
                   </td>
-                  <td style={{ padding: '8px 10px' }}>{p.sort_order}</td>
-                  <td style={{ padding: '8px 10px', display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                    <button style={{ ...btnEdit, fontSize: 12 }} onClick={() => fetchSubmissions(p.id)}>Submissions</button>
-                    <button style={btnEdit} onClick={() => startEdit(p)}>Edit</button>
-                    <button style={btnDanger} onClick={() => handleDelete(p.id)}>Delete</button>
+                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button style={{ ...btnEdit, fontSize: 12 }} onClick={() => fetchSubmissions(p.id)}>Submissions</button>
+                      <button style={btnEdit} onClick={() => startEdit(p)}>Edit</button>
+                      <button style={btnDanger} onClick={() => handleDelete(p.id)}>Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
