@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,7 +11,43 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { essay, prompt, minWords, maxWords } = await req.json()
+    const { essay, prompt, minWords, maxWords, promptId } = await req.json()
+
+    // ── Rate limit check ────────────────────────────────────────────────────
+    const dailyLimit = parseInt(Deno.env.get('ESSAY_DAILY_LIMIT') ?? '3', 10)
+
+    if (promptId) {
+      // Extract the student's JWT from the Authorization header
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader) {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        )
+
+        const startOfDay = new Date()
+        startOfDay.setHours(0, 0, 0, 0)
+
+        const { count, error: countErr } = await supabase
+          .from('essay_submissions')
+          .select('*', { count: 'exact', head: true })
+          .eq('prompt_id', promptId)
+          .gte('submitted_at', startOfDay.toISOString())
+
+        if (!countErr && count !== null && count >= dailyLimit) {
+          return new Response(
+            JSON.stringify({
+              error: `Daily limit reached. You can submit this prompt up to ${dailyLimit} time${dailyLimit !== 1 ? 's' : ''} per day.`,
+              limitReached: true,
+              dailyLimit,
+              usedToday: count,
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+    }
 
     if (!essay || !prompt) {
       return new Response(
@@ -94,7 +132,7 @@ ${maxWords ? `Maximum allowed words: ${maxWords}` : ''}`
     }
 
     return new Response(
-      JSON.stringify({ feedback, wordCount }),
+      JSON.stringify({ feedback, wordCount, dailyLimit }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

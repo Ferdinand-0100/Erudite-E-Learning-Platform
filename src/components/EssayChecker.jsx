@@ -5,6 +5,8 @@ import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import { useAppState } from '../lib/AppStateContext'
 
+const DAILY_LIMIT_DEFAULT = 3
+
 export default function EssayChecker({ courseKey }) {
   const { user } = useAuth()
   const [prompts, setPrompts] = useState([])
@@ -15,6 +17,10 @@ export default function EssayChecker({ courseKey }) {
   const [error, setError] = useState(null)
   const [showCorrections, setShowCorrections] = useState(false)
   const [pastSubmissions, setPastSubmissions] = useState([])
+
+  // Daily usage tracking: { [promptId]: count }
+  const [usageToday, setUsageToday] = useState({})
+  const [dailyLimit, setDailyLimit] = useState(DAILY_LIMIT_DEFAULT)
 
   // Per-prompt essay drafts — keyed by prompt ID
   const [essayDrafts, setEssayDrafts, clearEssayDrafts] = useAppState(`essay-drafts-${courseKey}`, {})
@@ -46,6 +52,28 @@ export default function EssayChecker({ courseKey }) {
         setLoading(false)
       })
   }, [courseKey])
+
+  // Fetch today's submission counts for all prompts in this course
+  useEffect(() => {
+    if (!user?.id || prompts.length === 0) return
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const promptIds = prompts.map(p => p.id)
+
+    supabase
+      .from('essay_submissions')
+      .select('prompt_id')
+      .eq('student_id', user.id)
+      .in('prompt_id', promptIds)
+      .gte('submitted_at', startOfDay.toISOString())
+      .then(({ data }) => {
+        const counts = {}
+        for (const row of data || []) {
+          counts[row.prompt_id] = (counts[row.prompt_id] ?? 0) + 1
+        }
+        setUsageToday(counts)
+      })
+  }, [user?.id, prompts])
 
   useEffect(() => {
     if (!selectedPrompt || !user?.id) return
@@ -80,6 +108,7 @@ export default function EssayChecker({ courseKey }) {
         prompt: selectedPrompt.prompt,
         minWords: selectedPrompt.min_words,
         maxWords: selectedPrompt.max_words,
+        promptId: selectedPrompt.id,
       }
     })
 
@@ -89,8 +118,17 @@ export default function EssayChecker({ courseKey }) {
       return
     }
 
+    // Update the daily limit from the server response if provided
+    if (data.dailyLimit) setDailyLimit(data.dailyLimit)
+
     setFeedback(data.feedback)
     clearEssayDraft(selectedPrompt.id)
+
+    // Increment local usage count
+    setUsageToday(prev => ({
+      ...prev,
+      [selectedPrompt.id]: (prev[selectedPrompt.id] ?? 0) + 1,
+    }))
 
     // Save submission and record progress event
     await supabase.from('essay_submissions').insert({
@@ -103,6 +141,9 @@ export default function EssayChecker({ courseKey }) {
 
     setChecking(false)
   }
+
+  const submissionsToday = selectedPrompt ? (usageToday[selectedPrompt.id] ?? 0) : 0
+  const limitReached = submissionsToday >= dailyLimit
 
   if (loading) {
     return (
@@ -168,16 +209,37 @@ export default function EssayChecker({ courseKey }) {
       <div style={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={styles.sectionLabel}>Your essay</div>
-          <div style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: selectedPrompt && wordCount < selectedPrompt.min_words
-              ? 'var(--color-danger)'
-              : selectedPrompt && wordCount > selectedPrompt.max_words
-              ? 'var(--color-danger)'
-              : 'var(--color-success)',
-          }}>
-            {wordCount} words
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Daily usage indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              {Array.from({ length: dailyLimit }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    border: '2px solid var(--color-border)',
+                    background: i < submissionsToday ? 'var(--color-accent)' : 'var(--color-muted)',
+                    transition: 'background var(--transition-base)',
+                  }}
+                />
+              ))}
+              <span style={{ fontSize: 11, color: 'var(--color-text-3)', marginLeft: 4 }}>
+                {submissionsToday}/{dailyLimit} today
+              </span>
+            </div>
+            <div style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: selectedPrompt && wordCount < selectedPrompt.min_words
+                ? 'var(--color-danger)'
+                : selectedPrompt && wordCount > selectedPrompt.max_words
+                ? 'var(--color-danger)'
+                : 'var(--color-success)',
+            }}>
+              {wordCount} words
+            </div>
           </div>
         </div>
         <textarea
@@ -190,24 +252,30 @@ export default function EssayChecker({ courseKey }) {
         {error && (
           <div style={styles.errorBox}>{error}</div>
         )}
-        <button
-          onClick={handleCheck}
-          disabled={checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)}
-          style={{
-            ...styles.checkBtn,
-            opacity: (checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)) ? 0.5 : 1,
-            cursor: (checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)) ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.background = 'var(--color-accent)'; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; e.currentTarget.style.transform = 'translate(2px, 2px)' } }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = '' }}
-        >
-          {checking ? (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={styles.spinner} /> Analysing your essay…
-            </span>
-          ) : 'Check my essay'}
-        </button>
-        {selectedPrompt && wordCount < selectedPrompt.min_words && essay.trim() && (
+        {limitReached ? (
+          <div style={styles.limitBox}>
+            You've used all {dailyLimit} submission{dailyLimit !== 1 ? 's' : ''} for this prompt today. Come back tomorrow!
+          </div>
+        ) : (
+          <button
+            onClick={handleCheck}
+            disabled={checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)}
+            style={{
+              ...styles.checkBtn,
+              opacity: (checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)) ? 0.5 : 1,
+              cursor: (checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)) ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.background = 'var(--color-accent)'; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; e.currentTarget.style.transform = 'translate(2px, 2px)' } }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = '' }}
+          >
+            {checking ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={styles.spinner} /> Analysing your essay…
+              </span>
+            ) : `Check my essay (${dailyLimit - submissionsToday} left today)`}
+          </button>
+        )}
+        {!limitReached && selectedPrompt && wordCount < selectedPrompt.min_words && essay.trim() && (
           <p style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 6 }}>
             {selectedPrompt.min_words - wordCount} more words needed
           </p>
@@ -426,6 +494,17 @@ const styles = {
     border: '2px solid var(--color-danger)',
     borderRadius: 'var(--radius-wobbly-sm)',
     fontSize: 13,
+  },
+  limitBox: {
+    marginTop: 12,
+    padding: '12px 14px',
+    background: 'var(--color-surface-2)',
+    color: 'var(--color-text-2)',
+    border: '2px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    fontSize: 13,
+    fontWeight: 500,
+    textAlign: 'center',
   },
   spinner: {
     width: 14,
