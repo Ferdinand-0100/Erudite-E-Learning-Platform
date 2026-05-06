@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle, AlertCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp, Clock } from 'lucide-react'
+import { CheckCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp, Clock, ImagePlus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
@@ -64,6 +64,44 @@ export default function EssayChecker({ courseKey }) {
   function clearEssayDraft(promptId) { setEssayDrafts(prev => { const n = { ...prev }; delete n[promptId]; return n }) }
 
   const [essay, setEssay] = useState('')
+
+  // ── Image upload (IELTS Task 1 Academic only) ────────────────────────────
+  const [imageBase64, setImageBase64] = useState(null)
+  const [imageMimeType, setImageMimeType] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const imageInputRef = useRef(null)
+
+  const isAcademic = selectedPrompt?.essay_type === 'ielts_task1_academic'
+
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      // dataUrl = "data:image/jpeg;base64,/9j/..."
+      const [meta, b64] = dataUrl.split(',')
+      const mime = meta.match(/:(.*?);/)?.[1] ?? 'image/jpeg'
+      setImageBase64(b64)
+      setImageMimeType(mime)
+      setImagePreview(dataUrl)
+    }
+    reader.readAsDataURL(file)
+    // reset input so same file can be re-selected
+    e.target.value = ''
+  }
+
+  function clearImage() {
+    setImageBase64(null)
+    setImageMimeType(null)
+    setImagePreview(null)
+  }
+
+  // Clear image when switching away from academic prompt
+  useEffect(() => {
+    if (!isAcademic) clearImage()
+  }, [selectedPrompt?.id])
 
   // ── Timer state ─────────────────────────────────────────────────────────────
   const [timerStarted, setTimerStarted] = useState(false)  // has the clock started?
@@ -223,6 +261,7 @@ export default function EssayChecker({ courseKey }) {
         maxWords: selectedPrompt.max_words,
         promptId: selectedPrompt.id,
         essayType: selectedPrompt.essay_type ?? 'general',
+        ...(imageBase64 ? { imageBase64, imageMimeType } : {}),
       }
     })
 
@@ -238,6 +277,7 @@ export default function EssayChecker({ courseKey }) {
     clearEssayDraft(selectedPrompt.id)
     clearStoredStart(selectedPrompt.id)
     clearInterval(timerRef.current)
+    clearImage()
 
     setUsageToday(prev => ({
       ...prev,
@@ -334,6 +374,76 @@ export default function EssayChecker({ courseKey }) {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Image upload — IELTS Task 1 Academic only */}
+      {isAcademic && (
+        <div style={styles.card}>
+          <div style={styles.sectionLabel}>Chart / graph / diagram</div>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleImageSelect}
+          />
+          {imagePreview ? (
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img
+                src={imagePreview}
+                alt="Uploaded chart"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 320,
+                  border: '2px solid var(--color-border)',
+                  borderRadius: 'var(--radius-wobbly-sm)',
+                  boxShadow: 'var(--shadow-card)',
+                  display: 'block',
+                }}
+              />
+              <button
+                onClick={clearImage}
+                style={{
+                  position: 'absolute', top: 6, right: 6,
+                  width: 26, height: 26,
+                  border: '2px solid var(--color-border)',
+                  borderRadius: '50%',
+                  background: 'var(--color-surface)',
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: 'var(--shadow-hover)',
+                }}
+                title="Remove image"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 16px',
+                border: '2px dashed var(--color-border)',
+                borderRadius: 'var(--radius-wobbly-sm)',
+                background: 'var(--color-muted)',
+                color: 'var(--color-text-2)',
+                cursor: 'pointer',
+                fontSize: 13, fontWeight: 500,
+                fontFamily: 'var(--font-body)',
+                transition: 'background var(--transition-base)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface-2)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-muted)' }}
+            >
+              <ImagePlus size={16} />
+              Upload chart, graph, or diagram
+            </button>
+          )}
+          <p style={{ fontSize: 11, color: 'var(--color-text-3)', marginTop: 8 }}>
+            Optional — upload the visual data so the AI can verify your description against it.
+          </p>
         </div>
       )}
 

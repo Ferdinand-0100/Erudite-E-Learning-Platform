@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { essay, prompt, minWords, maxWords, promptId, essayType = 'general' } = await req.json()
+    const { essay, prompt, minWords, maxWords, promptId, essayType = 'general', imageBase64, imageMimeType } = await req.json()
 
     // ── Rate limit check ────────────────────────────────────────────────────
     const dailyLimit = parseInt(Deno.env.get('ESSAY_DAILY_LIMIT') ?? '3', 10)
@@ -197,13 +197,28 @@ Deno.serve(async (req) => {
 
     const wordCount = essay.trim().split(/\s+/).filter(Boolean).length
     const systemPrompt = getSystemPrompt(essayType)
+    const hasImage = essayType === 'ielts_task1_academic' && !!imageBase64
 
-    const userMessage = `Essay Prompt: ${prompt}
+    // Use vision model when an image is provided, text model otherwise
+    const model = hasImage
+      ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+      : 'llama-3.3-70b-versatile'
+
+    const textContent = `Essay Prompt: ${prompt}
 
 Student's Essay (${wordCount} words):
 ${essay}
 ${minWords ? `\nMinimum required words: ${minWords}` : ''}
-${maxWords ? `Maximum allowed words: ${maxWords}` : ''}`
+${maxWords ? `Maximum allowed words: ${maxWords}` : ''}
+${hasImage ? '\nThe student has also uploaded the visual data (chart/graph/diagram) they were asked to describe. Use it to verify whether their description is accurate, and include observations about accuracy in your task_achievement feedback.' : ''}`
+
+    // Build user message — multimodal if image present
+    const userMessage = hasImage
+      ? [
+          { type: 'text', text: textContent },
+          { type: 'image_url', image_url: { url: `data:${imageMimeType};base64,${imageBase64}` } },
+        ]
+      : textContent
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -212,14 +227,15 @@ ${maxWords ? `Maximum allowed words: ${maxWords}` : ''}`
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
         temperature: 0.3,
         max_tokens: 2048,
-        response_format: { type: 'json_object' },
+        // json_object mode not supported with vision model — rely on system prompt
+        ...(hasImage ? {} : { response_format: { type: 'json_object' } }),
       }),
     })
 
@@ -236,7 +252,9 @@ ${maxWords ? `Maximum allowed words: ${maxWords}` : ''}`
 
     let feedback
     try {
-      feedback = JSON.parse(rawText)
+      // Strip markdown code fences if the vision model wraps its output
+      const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+      feedback = JSON.parse(cleaned)
     } catch {
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }),
