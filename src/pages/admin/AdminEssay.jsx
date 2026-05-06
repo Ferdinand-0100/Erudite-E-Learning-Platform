@@ -13,7 +13,17 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', sort_order: 0 }
+const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general', sort_order: 0 }
+
+// Essay type options — maps to the edge function rubric keys
+const ESSAY_TYPE_OPTIONS = [
+  { value: 'general',              label: 'General English (GET)' },
+  { value: 'ielts_task1_academic', label: 'IELTS Task 1 — Academic (graph/chart)' },
+  { value: 'ielts_task1_general',  label: 'IELTS Task 1 — General Training (letter)' },
+  { value: 'ielts_task2',          label: 'IELTS Task 2 — Essay' },
+  { value: 'pte_summarize',        label: 'PTE — Summarize Written Text' },
+  { value: 'pte_essay',            label: 'PTE — Write Essay' },
+]
 
 // ── Draft persistence ─────────────────────────────────────────────────────────
 
@@ -78,7 +88,7 @@ export default function AdminEssay() {
 
   function startEdit(p) {
     setEditingId(p.id)
-    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', sort_order: p.sort_order })
+    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general', sort_order: p.sort_order })
     setError(null)
   }
 
@@ -135,6 +145,15 @@ export default function AdminEssay() {
           <textarea style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }} name="prompt" value={form.prompt} onChange={handleField} required placeholder="Write the full essay question here..." />
         </div>
 
+        <div>
+          <label style={labelStyle}>Essay type</label>
+          <select style={inputStyle} name="essay_type" value={form.essay_type ?? 'general'} onChange={handleField}>
+            {ESSAY_TYPE_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px', gap: 'var(--space-3)' }}>
           <div>
             <label style={labelStyle}>Min words</label>
@@ -170,6 +189,7 @@ export default function AdminEssay() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
+                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Type</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Words</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Time limit</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Order</th>
@@ -182,6 +202,11 @@ export default function AdminEssay() {
                   <td style={{ padding: '8px 10px', maxWidth: 400 }}>
                     <div style={{ fontWeight: 500 }}>{p.title}</div>
                     <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360 }}>{p.prompt}</div>
+                  </td>
+                  <td style={{ padding: '8px 10px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-muted)', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
+                      {ESSAY_TYPE_OPTIONS.find(o => o.value === (p.essay_type ?? 'general'))?.label ?? p.essay_type}
+                    </span>
                   </td>
                   <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>{p.min_words}–{p.max_words}</td>
                   <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>

@@ -5,19 +5,150 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// ── Per-format scoring rubrics ────────────────────────────────────────────────
+
+function getSystemPrompt(essayType: string): string {
+  const base = `Return a JSON object with no markdown, no explanation — raw JSON only.`
+
+  switch (essayType) {
+
+    case 'ielts_task1_academic':
+      return `${base} You are an IELTS Academic examiner. The student has written a Task 1 Academic response describing visual data (graph, chart, table, diagram). Score using official IELTS Academic Task 1 criteria. Return:
+{
+  "overall_score": <number 1-10>,
+  "band_estimate": "<e.g. Band 6.5>",
+  "word_count": <number>,
+  "summary": "<2-3 sentence overall assessment>",
+  "categories": {
+    "task_achievement": { "score": <1-10>, "feedback": "<did they cover key features, overview, data accurately?>" },
+    "coherence_cohesion": { "score": <1-10>, "feedback": "<logical organisation, paragraphing, linking words>" },
+    "lexical_resource": { "score": <1-10>, "feedback": "<range and accuracy of vocabulary for data description>" },
+    "grammatical_range_accuracy": { "score": <1-10>, "feedback": "<range and accuracy of grammar>" }
+  },
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "corrected_sentences": [
+    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
+  ]
+}`
+
+    case 'ielts_task1_general':
+      return `${base} You are an IELTS General Training examiner. The student has written a Task 1 General letter. Score using official IELTS General Task 1 criteria. Return:
+{
+  "overall_score": <number 1-10>,
+  "band_estimate": "<e.g. Band 6.5>",
+  "word_count": <number>,
+  "summary": "<2-3 sentence overall assessment>",
+  "categories": {
+    "task_achievement": { "score": <1-10>, "feedback": "<did they address all bullet points, appropriate tone and format?>" },
+    "coherence_cohesion": { "score": <1-10>, "feedback": "<logical organisation, paragraphing, linking words>" },
+    "lexical_resource": { "score": <1-10>, "feedback": "<range and accuracy of vocabulary>" },
+    "grammatical_range_accuracy": { "score": <1-10>, "feedback": "<range and accuracy of grammar>" }
+  },
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "corrected_sentences": [
+    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
+  ]
+}`
+
+    case 'ielts_task2':
+      return `${base} You are an IELTS Task 2 examiner. The student has written an academic essay. Score using official IELTS Task 2 criteria. Return:
+{
+  "overall_score": <number 1-10>,
+  "band_estimate": "<e.g. Band 6.5>",
+  "word_count": <number>,
+  "summary": "<2-3 sentence overall assessment>",
+  "categories": {
+    "task_response": { "score": <1-10>, "feedback": "<did they fully address all parts of the task, clear position?>" },
+    "coherence_cohesion": { "score": <1-10>, "feedback": "<logical structure, paragraphing, cohesive devices>" },
+    "lexical_resource": { "score": <1-10>, "feedback": "<range, accuracy, and appropriacy of vocabulary>" },
+    "grammatical_range_accuracy": { "score": <1-10>, "feedback": "<range and accuracy of grammar>" }
+  },
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "corrected_sentences": [
+    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
+  ]
+}`
+
+    case 'pte_summarize':
+      return `${base} You are a PTE Academic examiner. The student has written a "Summarize Written Text" response (one sentence summary). Score using official PTE criteria. Return:
+{
+  "overall_score": <number 1-10>,
+  "band_estimate": "<PTE score estimate e.g. 65-79>",
+  "word_count": <number>,
+  "summary": "<2-3 sentence overall assessment>",
+  "categories": {
+    "content": { "score": <1-10>, "feedback": "<did they capture the main point accurately?>" },
+    "form": { "score": <1-10>, "feedback": "<is it a single grammatically complete sentence within 5-75 words?>" },
+    "grammar": { "score": <1-10>, "feedback": "<grammatical accuracy>" },
+    "vocabulary": { "score": <1-10>, "feedback": "<appropriate and accurate word choice>" }
+  },
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "corrected_sentences": [
+    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
+  ]
+}`
+
+    case 'pte_essay':
+      return `${base} You are a PTE Academic examiner. The student has written a "Write Essay" response. Score using official PTE Write Essay criteria. Return:
+{
+  "overall_score": <number 1-10>,
+  "band_estimate": "<PTE score estimate e.g. 65-79>",
+  "word_count": <number>,
+  "summary": "<2-3 sentence overall assessment>",
+  "categories": {
+    "content": { "score": <1-10>, "feedback": "<relevance to topic, development of ideas, supporting details>" },
+    "form": { "score": <1-10>, "feedback": "<appropriate length 200-300 words, essay structure>" },
+    "grammar": { "score": <1-10>, "feedback": "<range and accuracy of grammatical structures>" },
+    "vocabulary": { "score": <1-10>, "feedback": "<range, accuracy, and appropriacy of vocabulary>" },
+    "spelling": { "score": <1-10>, "feedback": "<spelling accuracy>" },
+    "linguistic_range": { "score": <1-10>, "feedback": "<variety of sentence structures and vocabulary>" }
+  },
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "corrected_sentences": [
+    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
+  ]
+}`
+
+    // GET / general English writing (default)
+    default:
+      return `${base} You are an expert English writing coach. Evaluate the student's essay. Return:
+{
+  "overall_score": <number 1-10>,
+  "band_estimate": "<general level e.g. B2 Upper-Intermediate>",
+  "word_count": <number>,
+  "summary": "<2-3 sentence overall assessment>",
+  "categories": {
+    "task_achievement": { "score": <1-10>, "feedback": "<did they address the task fully?>" },
+    "coherence_cohesion": { "score": <1-10>, "feedback": "<organisation, paragraphing, linking>" },
+    "lexical_resource": { "score": <1-10>, "feedback": "<vocabulary range and accuracy>" },
+    "grammatical_range": { "score": <1-10>, "feedback": "<grammar range and accuracy>" }
+  },
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
+  "corrected_sentences": [
+    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
+  ]
+}`
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { essay, prompt, minWords, maxWords, promptId } = await req.json()
+    const { essay, prompt, minWords, maxWords, promptId, essayType = 'general' } = await req.json()
 
     // ── Rate limit check ────────────────────────────────────────────────────
     const dailyLimit = parseInt(Deno.env.get('ESSAY_DAILY_LIMIT') ?? '3', 10)
 
     if (promptId) {
-      // Extract the student's JWT from the Authorization header
       const authHeader = req.headers.get('Authorization')
       if (authHeader) {
         const supabase = createClient(
@@ -65,25 +196,7 @@ Deno.serve(async (req) => {
     }
 
     const wordCount = essay.trim().split(/\s+/).filter(Boolean).length
-
-    const systemPrompt = `You are an expert English writing coach and examiner. Evaluate the student's essay and return a JSON object with exactly this structure — no markdown, no explanation, just the raw JSON:
-{
-  "overall_score": <number 1-10>,
-  "band_estimate": "<IELTS band estimate e.g. Band 6.5>",
-  "word_count": <number>,
-  "summary": "<2-3 sentence overall assessment>",
-  "categories": {
-    "task_achievement": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "coherence_cohesion": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "lexical_resource": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "grammatical_range": { "score": <1-10>, "feedback": "<specific feedback>" }
-  },
-  "strengths": ["<strength 1>", "<strength 2>"],
-  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],
-  "corrected_sentences": [
-    { "original": "<sentence with error>", "corrected": "<corrected version>", "explanation": "<why>" }
-  ]
-}`
+    const systemPrompt = getSystemPrompt(essayType)
 
     const userMessage = `Essay Prompt: ${prompt}
 

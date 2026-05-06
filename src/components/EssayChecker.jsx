@@ -5,6 +5,16 @@ import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import { useAppState } from '../lib/AppStateContext'
 
+// Essay type display labels (mirrors admin options)
+const ESSAY_TYPE_LABELS = {
+  general:              'General English',
+  ielts_task1_academic: 'IELTS Task 1 — Academic',
+  ielts_task1_general:  'IELTS Task 1 — General',
+  ielts_task2:          'IELTS Task 2',
+  pte_summarize:        'PTE — Summarize Written Text',
+  pte_essay:            'PTE — Write Essay',
+}
+
 const DAILY_LIMIT_DEFAULT = 3
 
 // ── Timer helpers ─────────────────────────────────────────────────────────────
@@ -212,6 +222,7 @@ export default function EssayChecker({ courseKey }) {
         minWords: selectedPrompt.min_words,
         maxWords: selectedPrompt.max_words,
         promptId: selectedPrompt.id,
+        essayType: selectedPrompt.essay_type ?? 'general',
       }
     })
 
@@ -303,7 +314,12 @@ export default function EssayChecker({ courseKey }) {
       {/* Active prompt */}
       {selectedPrompt && (
         <div style={styles.promptCard}>
-          <div style={styles.sectionLabel}>Essay prompt</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={styles.sectionLabel}>Essay prompt</div>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-surface)', color: 'var(--color-secondary)', marginBottom: 10 }}>
+              {ESSAY_TYPE_LABELS[selectedPrompt.essay_type ?? 'general'] ?? selectedPrompt.essay_type}
+            </span>
+          </div>
           <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--color-text)', fontWeight: 500 }}>
             {selectedPrompt.prompt}
           </p>
@@ -443,7 +459,7 @@ export default function EssayChecker({ courseKey }) {
       </div>
 
       {/* Feedback */}
-      {feedback && <FeedbackPanel feedback={feedback} showCorrections={showCorrections} setShowCorrections={setShowCorrections} />}
+      {feedback && <FeedbackPanel feedback={feedback} showCorrections={showCorrections} setShowCorrections={setShowCorrections} essayType={selectedPrompt?.essay_type} />}
 
       {/* Past submissions */}
       {pastSubmissions.length > 0 && !feedback && (
@@ -482,8 +498,10 @@ function ScoreBar({ score }) {
   )
 }
 
-function FeedbackPanel({ feedback, showCorrections, setShowCorrections }) {
+function FeedbackPanel({ feedback, showCorrections, setShowCorrections, essayType }) {
   const scoreColor = feedback.overall_score >= 7 ? '#16a34a' : feedback.overall_score >= 5 ? '#d97706' : '#dc2626'
+  const isPTE = essayType?.startsWith('pte_')
+  const estimateLabel = isPTE ? 'PTE score estimate' : essayType?.startsWith('ielts_') ? 'Band estimate' : 'Level estimate'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -497,7 +515,11 @@ function FeedbackPanel({ feedback, showCorrections, setShowCorrections }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
           <span style={{ fontFamily: 'var(--font-heading)', fontSize: 52, fontWeight: 700, color: 'var(--color-accent)', lineHeight: 1 }}>{feedback.overall_score}</span>
           <span style={{ fontSize: 18, color: 'var(--color-text-3)' }}>/10</span>
-          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-2)', marginLeft: 8 }}>{feedback.band_estimate}</span>
+          {feedback.band_estimate && (
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-2)', marginLeft: 8 }}>
+              {estimateLabel}: {feedback.band_estimate}
+            </span>
+          )}
         </div>
         <p style={{ fontSize: 14, color: 'var(--color-text)', lineHeight: 1.6, margin: 0 }}>{feedback.summary}</p>
       </div>
