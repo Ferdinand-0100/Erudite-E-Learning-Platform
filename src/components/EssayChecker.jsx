@@ -1,11 +1,34 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle, AlertCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { CheckCircle, AlertCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import { useAppState } from '../lib/AppStateContext'
 
 const DAILY_LIMIT_DEFAULT = 3
+
+// ── Timer helpers ─────────────────────────────────────────────────────────────
+
+function timerStorageKey(promptId) { return `essay-timer-start-${promptId}` }
+
+function getStoredStart(promptId) {
+  try { return parseInt(sessionStorage.getItem(timerStorageKey(promptId)) || '0', 10) || null }
+  catch { return null }
+}
+
+function setStoredStart(promptId, ts) {
+  try { sessionStorage.setItem(timerStorageKey(promptId), String(ts)) } catch {}
+}
+
+function clearStoredStart(promptId) {
+  try { sessionStorage.removeItem(timerStorageKey(promptId)) } catch {}
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 export default function EssayChecker({ courseKey }) {
   const { user } = useAuth()
@@ -32,7 +55,77 @@ export default function EssayChecker({ courseKey }) {
 
   const [essay, setEssay] = useState('')
 
+  // ── Timer state ─────────────────────────────────────────────────────────────
+  const [timerStarted, setTimerStarted] = useState(false)  // has the clock started?
+  const [secondsLeft, setSecondsLeft] = useState(null)     // null = not running
+  const [timeExpired, setTimeExpired] = useState(false)
+  const timerRef = useRef(null)
+  const autoSubmitRef = useRef(false) // prevent double-submit on expiry
+
   const wordCount = essay.trim().split(/\s+/).filter(Boolean).length
+
+  // ── Start / restore timer ───────────────────────────────────────────────────
+  const startTimer = useCallback((prompt, startTs = Date.now()) => {
+    if (!prompt?.time_limit_minutes) return
+    const totalSeconds = prompt.time_limit_minutes * 60
+    setStoredStart(prompt.id, startTs)
+    setTimerStarted(true)
+
+    function tick() {
+      const elapsed = Math.floor((Date.now() - startTs) / 1000)
+      const remaining = totalSeconds - elapsed
+      if (remaining <= 0) {
+        setSecondsLeft(0)
+        setTimeExpired(true)
+        clearInterval(timerRef.current)
+      } else {
+        setSecondsLeft(remaining)
+      }
+    }
+    tick()
+    timerRef.current = setInterval(tick, 1000)
+  }, [])
+
+  // Clear timer interval on unmount or prompt change
+  useEffect(() => {
+    return () => clearInterval(timerRef.current)
+  }, [selectedPrompt?.id])
+
+  // Restore timer from sessionStorage when prompt loads
+  useEffect(() => {
+    if (!selectedPrompt?.time_limit_minutes) {
+      setTimerStarted(false)
+      setSecondsLeft(null)
+      setTimeExpired(false)
+      clearInterval(timerRef.current)
+      return
+    }
+    const stored = getStoredStart(selectedPrompt.id)
+    if (stored) {
+      const elapsed = Math.floor((Date.now() - stored) / 1000)
+      const totalSeconds = selectedPrompt.time_limit_minutes * 60
+      if (elapsed >= totalSeconds) {
+        // Already expired
+        setTimerStarted(true)
+        setSecondsLeft(0)
+        setTimeExpired(true)
+      } else {
+        startTimer(selectedPrompt, stored)
+      }
+    } else {
+      setTimerStarted(false)
+      setSecondsLeft(null)
+      setTimeExpired(false)
+    }
+  }, [selectedPrompt?.id])
+
+  // Auto-submit when time expires
+  useEffect(() => {
+    if (timeExpired && essay.trim() && !autoSubmitRef.current && !checking) {
+      autoSubmitRef.current = true
+      handleCheck(true)
+    }
+  }, [timeExpired])
 
   useEffect(() => {
     supabase
@@ -44,7 +137,6 @@ export default function EssayChecker({ courseKey }) {
         const list = data || []
         setPrompts(list)
         if (list.length > 0) {
-          // Restore previously selected prompt, or default to first
           const initial = list.find(p => p.id === selectedPromptId) ?? list[0]
           setSelectedPrompt(initial)
           setEssay(getEssayDraft(initial.id))
@@ -88,15 +180,26 @@ export default function EssayChecker({ courseKey }) {
   }, [selectedPrompt, user?.id])
 
   function handlePromptSelect(p) {
+    clearInterval(timerRef.current)
     setSelectedPromptId(p.id)
     setSelectedPrompt(p)
     setFeedback(null)
     setError(null)
-    // Load this prompt's own draft — preserves work across all prompts
+    autoSubmitRef.current = false
     setEssay(getEssayDraft(p.id))
   }
 
-  async function handleCheck() {
+  // Start the timer on first keystroke if the prompt has a time limit
+  function handleEssayChange(e) {
+    const val = e.target.value
+    setEssay(val)
+    if (selectedPrompt) saveEssayDraft(selectedPrompt.id, val)
+    if (selectedPrompt?.time_limit_minutes && !timerStarted && !timeExpired) {
+      startTimer(selectedPrompt)
+    }
+  }
+
+  async function handleCheck(isAutoSubmit = false) {
     if (!essay.trim() || !selectedPrompt) return
     setChecking(true)
     setError(null)
@@ -118,19 +221,18 @@ export default function EssayChecker({ courseKey }) {
       return
     }
 
-    // Update the daily limit from the server response if provided
     if (data.dailyLimit) setDailyLimit(data.dailyLimit)
 
     setFeedback(data.feedback)
     clearEssayDraft(selectedPrompt.id)
+    clearStoredStart(selectedPrompt.id)
+    clearInterval(timerRef.current)
 
-    // Increment local usage count
     setUsageToday(prev => ({
       ...prev,
       [selectedPrompt.id]: (prev[selectedPrompt.id] ?? 0) + 1,
     }))
 
-    // Save submission and record progress event
     await supabase.from('essay_submissions').insert({
       prompt_id: selectedPrompt.id,
       student_id: user.id,
@@ -144,6 +246,12 @@ export default function EssayChecker({ courseKey }) {
 
   const submissionsToday = selectedPrompt ? (usageToday[selectedPrompt.id] ?? 0) : 0
   const limitReached = submissionsToday >= dailyLimit
+  const hasTimeLimit = !!selectedPrompt?.time_limit_minutes
+  const timerColor = secondsLeft !== null && secondsLeft <= 60
+    ? 'var(--color-danger)'
+    : secondsLeft !== null && secondsLeft <= 180
+    ? '#d97706'
+    : 'var(--color-text-2)'
 
   if (loading) {
     return (
@@ -199,8 +307,16 @@ export default function EssayChecker({ courseKey }) {
           <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--color-text)', fontWeight: 500 }}>
             {selectedPrompt.prompt}
           </p>
-          <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 8 }}>
-            {selectedPrompt.min_words}–{selectedPrompt.max_words} words required
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>
+              {selectedPrompt.min_words}–{selectedPrompt.max_words} words required
+            </span>
+            {hasTimeLimit && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--color-secondary)', background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: '2px 8px' }}>
+                <Clock size={11} />
+                {selectedPrompt.time_limit_minutes} min time limit
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -208,7 +324,28 @@ export default function EssayChecker({ courseKey }) {
       {/* Essay input */}
       <div style={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={styles.sectionLabel}>Your essay</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={styles.sectionLabel}>Your essay</div>
+            {/* Timer display */}
+            {hasTimeLimit && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 13, fontWeight: 700, color: timerColor,
+                border: `2px solid ${timerColor}`,
+                borderRadius: 'var(--radius-wobbly-sm)',
+                padding: '2px 10px',
+                transition: 'color var(--transition-base), border-color var(--transition-base)',
+                background: timeExpired ? 'var(--color-danger-bg)' : secondsLeft !== null && secondsLeft <= 60 ? 'var(--color-danger-bg)' : 'var(--color-surface)',
+              }}>
+                <Clock size={12} />
+                {timeExpired
+                  ? 'Time\'s up!'
+                  : secondsLeft !== null
+                  ? formatTime(secondsLeft)
+                  : `${selectedPrompt.time_limit_minutes}:00`}
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Daily usage indicator */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -242,12 +379,25 @@ export default function EssayChecker({ courseKey }) {
             </div>
           </div>
         </div>
+
+        {/* Timer not-started hint */}
+        {hasTimeLimit && !timerStarted && !timeExpired && (
+          <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 12, color: 'var(--color-text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Clock size={13} style={{ flexShrink: 0 }} />
+            Timer starts when you begin typing. You'll have {selectedPrompt.time_limit_minutes} minutes.
+          </div>
+        )}
+
         <textarea
           value={essay}
-          onChange={e => { setEssay(e.target.value); if (selectedPrompt) saveEssayDraft(selectedPrompt.id, e.target.value) }}
+          onChange={handleEssayChange}
           placeholder="Write your essay here..."
-          style={styles.textarea}
+          style={{
+            ...styles.textarea,
+            ...(timeExpired ? { opacity: 0.6, pointerEvents: 'none' } : {}),
+          }}
           rows={12}
+          disabled={timeExpired}
         />
         {error && (
           <div style={styles.errorBox}>{error}</div>
@@ -256,9 +406,19 @@ export default function EssayChecker({ courseKey }) {
           <div style={styles.limitBox}>
             You've used all {dailyLimit} submission{dailyLimit !== 1 ? 's' : ''} for this prompt today. Come back tomorrow!
           </div>
+        ) : timeExpired && checking ? (
+          <div style={{ ...styles.limitBox, background: 'var(--color-danger-bg)', border: '2px solid var(--color-danger)', color: 'var(--color-danger)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span style={styles.spinner} /> Time's up — submitting your essay…
+            </span>
+          </div>
+        ) : timeExpired ? (
+          <div style={{ ...styles.limitBox, background: 'var(--color-danger-bg)', border: '2px solid var(--color-danger)', color: 'var(--color-danger)' }}>
+            Time's up! Your essay was submitted automatically.
+          </div>
         ) : (
           <button
-            onClick={handleCheck}
+            onClick={() => handleCheck(false)}
             disabled={checking || !essay.trim() || (selectedPrompt && wordCount < selectedPrompt.min_words)}
             style={{
               ...styles.checkBtn,
@@ -275,7 +435,7 @@ export default function EssayChecker({ courseKey }) {
             ) : `Check my essay (${dailyLimit - submissionsToday} left today)`}
           </button>
         )}
-        {!limitReached && selectedPrompt && wordCount < selectedPrompt.min_words && essay.trim() && (
+        {!limitReached && !timeExpired && selectedPrompt && wordCount < selectedPrompt.min_words && essay.trim() && (
           <p style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 6 }}>
             {selectedPrompt.min_words - wordCount} more words needed
           </p>

@@ -305,6 +305,11 @@ create policy "Own activity_log" on public.activity_log
   for all using (auth.uid() = student_id);
 
 
+-- ─── ESSAY PROMPTS — time limit column ─────────────────────
+-- Add time_limit_minutes to essay_prompts if it doesn't exist yet.
+-- Run this if you already have the essay_prompts table deployed.
+-- ALTER TABLE public.essay_prompts ADD COLUMN IF NOT EXISTS time_limit_minutes int;
+
 -- ─── ENROLLMENTS ────────────────────────────────────────────
 -- Stores per-level course access for each student.
 -- course_key format: {course}_{subclass}_{level} (all lowercase)

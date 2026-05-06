@@ -13,7 +13,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, sort_order: 0 }
+const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', sort_order: 0 }
 
 // ── Draft persistence ─────────────────────────────────────────────────────────
 
@@ -73,12 +73,12 @@ export default function AdminEssay() {
 
   function handleField(e) {
     const { name, value } = e.target
-    setForm(f => ({ ...f, [name]: ['min_words', 'max_words', 'sort_order'].includes(name) ? Number(value) : value }))
+    setForm(f => ({ ...f, [name]: ['min_words', 'max_words', 'sort_order'].includes(name) ? Number(value) : name === 'time_limit_minutes' ? (value === '' ? null : Number(value)) : value }))
   }
 
   function startEdit(p) {
     setEditingId(p.id)
-    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, sort_order: p.sort_order })
+    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', sort_order: p.sort_order })
     setError(null)
   }
 
@@ -135,7 +135,7 @@ export default function AdminEssay() {
           <textarea style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }} name="prompt" value={form.prompt} onChange={handleField} required placeholder="Write the full essay question here..." />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 100px', gap: 'var(--space-3)' }}>
           <div>
             <label style={labelStyle}>Min words</label>
             <input style={inputStyle} type="number" name="min_words" value={form.min_words} onChange={handleField} />
@@ -143,6 +143,10 @@ export default function AdminEssay() {
           <div>
             <label style={labelStyle}>Max words</label>
             <input style={inputStyle} type="number" name="max_words" value={form.max_words} onChange={handleField} />
+          </div>
+          <div>
+            <label style={labelStyle}>Time limit (minutes)</label>
+            <input style={inputStyle} type="number" name="time_limit_minutes" value={form.time_limit_minutes ?? ''} onChange={handleField} placeholder="No limit" min={1} />
           </div>
           <div>
             <label style={labelStyle}>Sort order</label>
@@ -167,6 +171,7 @@ export default function AdminEssay() {
               <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Words</th>
+                <th style={{ padding: '8px 10px', fontWeight: 600 }}>Time limit</th>
                 <th style={{ padding: '8px 10px', fontWeight: 600 }}>Order</th>
                 <th style={{ padding: '8px 10px' }} />
               </tr>
@@ -179,6 +184,9 @@ export default function AdminEssay() {
                     <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360 }}>{p.prompt}</div>
                   </td>
                   <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>{p.min_words}–{p.max_words}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--color-text-2)' }}>
+                    {p.time_limit_minutes ? `${p.time_limit_minutes} min` : <span style={{ color: 'var(--color-text-3)' }}>—</span>}
+                  </td>
                   <td style={{ padding: '8px 10px' }}>{p.sort_order}</td>
                   <td style={{ padding: '8px 10px', display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                     <button style={{ ...btnEdit, fontSize: 12 }} onClick={() => fetchSubmissions(p.id)}>Submissions</button>
