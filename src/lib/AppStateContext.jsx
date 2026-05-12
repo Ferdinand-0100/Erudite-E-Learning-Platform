@@ -13,7 +13,7 @@
  *   - All state is namespaced by key — no collisions
  */
 
-import { createContext, useContext, useCallback, useState, useRef } from 'react'
+import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react'
 
 const AppStateContext = createContext(null)
 
@@ -46,10 +46,14 @@ export function AppStateProvider({ children }) {
   // In-memory cache so React re-renders work correctly.
   // sessionStorage is the source of truth; this cache keeps React in sync.
   const cache = useRef({})
+  // Tracks the defaultValue registered for each key, so clear() can reset properly.
+  const defaults = useRef({})
   // Subscribers: key → Set of setState functions
   const subscribers = useRef({})
 
   const get = useCallback((key, defaultValue) => {
+    // Always record the latest default so clear() knows what to reset to
+    defaults.current[key] = defaultValue
     if (key in cache.current) return cache.current[key]
     const stored = readStorage(key)
     const value = stored !== undefined ? stored : defaultValue
@@ -58,7 +62,9 @@ export function AppStateProvider({ children }) {
   }, [])
 
   const set = useCallback((key, valueOrUpdater) => {
-    const current = cache.current[key]
+    // Use SENTINEL to distinguish "not in cache" from a legitimate stored undefined/null.
+    // This prevents functional updaters from receiving undefined when the key was just cleared.
+    const current = key in cache.current ? cache.current[key] : defaults.current[key]
     const next = typeof valueOrUpdater === 'function'
       ? valueOrUpdater(current)
       : valueOrUpdater
@@ -69,9 +75,12 @@ export function AppStateProvider({ children }) {
   }, [])
 
   const clear = useCallback((key) => {
-    delete cache.current[key]
+    // Reset to default rather than deleting — keeps the cache entry valid so
+    // functional updaters in set() always receive a well-typed value.
+    const def = defaults.current[key]
+    cache.current[key] = def
     deleteStorage(key)
-    subscribers.current[key]?.forEach(fn => fn(undefined))
+    subscribers.current[key]?.forEach(fn => fn(def))
   }, [])
 
   const subscribe = useCallback((key, fn) => {
@@ -107,29 +116,32 @@ export function useAppState(key, defaultValue) {
   // Local React state — initialised from the store
   const [localValue, setLocalValue] = useState(() => get(key, defaultValue))
 
-  // Subscribe to external updates (e.g. another component changing the same key)
-  // This is a one-time registration — the cleanup runs on unmount
-  useState(() => {
+  // Keep a stable ref to defaultValue so the effect below doesn't re-run on every render
+  const defaultRef = useRef(defaultValue)
+  defaultRef.current = defaultValue
+
+  // Subscribe to store updates. This is the ONLY path that updates localValue,
+  // which avoids the double-update bug from calling setLocalValue both here and
+  // inside setValue.
+  useEffect(() => {
+    // Sync in case the store changed while this component was unmounted
+    setLocalValue(get(key, defaultRef.current))
+
     const unsub = subscribe(key, (next) => {
-      setLocalValue(next !== undefined ? next : defaultValue)
+      setLocalValue(next)
     })
     return unsub
-  })
+  }, [key, get, subscribe])
 
   const setValue = useCallback((valueOrUpdater) => {
+    // set() updates the cache, writes to sessionStorage, and notifies subscribers.
+    // The subscriber above is what actually updates localValue — single code path.
     set(key, valueOrUpdater)
-    setLocalValue(prev => {
-      const next = typeof valueOrUpdater === 'function'
-        ? valueOrUpdater(prev)
-        : valueOrUpdater
-      return next
-    })
   }, [key, set])
 
   const clearValue = useCallback(() => {
     clear(key)
-    setLocalValue(defaultValue)
-  }, [key, clear, defaultValue])
+  }, [key, clear])
 
   return [localValue, setValue, clearValue]
 }

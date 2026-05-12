@@ -51,7 +51,7 @@ export default function VideoList({ courseKey }) {
   })
 
   function toggleDifficulty(d) {
-    // Radio behaviour: clicking active deselects, clicking inactive selects only this one
+    // Radio behaviour: clicking the active one deselects, clicking another selects only that one
     setActiveDifficulties(prev => prev.includes(d) ? [] : [d])
   }
   function toggleTag(t) {
