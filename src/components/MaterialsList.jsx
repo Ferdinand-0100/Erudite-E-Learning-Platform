@@ -48,7 +48,8 @@ export default function MaterialsList({ courseKey }) {
   })
 
   function toggleDifficulty(d) {
-    setActiveDifficulties(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
+    // Radio behaviour: clicking active deselects, clicking inactive selects only this one
+    setActiveDifficulties(prev => prev.includes(d) ? [] : [d])
   }
   function toggleTag(t) {
     setActiveTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])

@@ -56,16 +56,7 @@ export default function FilterBar({
             <button
               key={d}
               type="button"
-              onClick={() => {
-                // Radio behaviour: clicking active deselects, clicking inactive selects only this one
-                if (isActive) {
-                  onDifficultyToggle(d) // deselect
-                } else {
-                  // Deselect any currently active difficulty first, then select this one
-                  activeDifficulties.forEach(active => onDifficultyToggle(active))
-                  onDifficultyToggle(d)
-                }
-              }}
+              onClick={() => onDifficultyToggle(d)}
               style={{
                 ...styles.chip,
                 background: isActive ? dc.bg : 'var(--color-surface)',
