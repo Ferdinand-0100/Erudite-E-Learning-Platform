@@ -33,9 +33,9 @@ create trigger on_auth_user_created
 
 -- ─── VIDEOS ─────────────────────────────────────────────────
 -- course_key format: {course}_{subclass}_{level}  (3 segments, all lowercase)
--- examples: 'english_GET_beginner', 'english_IELTS_band5', 'english_PTE_pte_academic_65',
---           'mandarin_GM_hsk1', 'mandarin_HSK_hsk3', 'mandarin_TOCFL_band_a',
---           'computer_web_beginner', 'computer_IOT_intermediate'
+-- examples: 'english_get_starter', 'english_ielts_ac', 'english_pte_pte_academic',
+--           'mandarin_gm_level_1', 'mandarin_hsk_hsk3', 'mandarin_tocfl_a1',
+--           'computer_web_beginner', 'computer_iot_intermediate'
 create table if not exists public.videos (
   id               uuid primary key default gen_random_uuid(),
   course_key       text not null,
@@ -52,7 +52,7 @@ create index if not exists videos_course_key_idx on public.videos(course_key);
 
 -- ─── MATERIALS ──────────────────────────────────────────────
 -- course_key format: {course}_{subclass}_{level}  (3 segments, all lowercase)
--- examples: 'english_GET_beginner', 'mandarin_GM_hsk1', 'computer_web_beginner'
+-- examples: 'english_get_starter', 'mandarin_gm_level_1', 'computer_web_beginner'
 create table if not exists public.materials (
   id               uuid primary key default gen_random_uuid(),
   course_key       text not null,
@@ -68,7 +68,7 @@ create index if not exists materials_course_key_idx on public.materials(course_k
 
 -- ─── QUIZ QUESTIONS ─────────────────────────────────────────
 -- course_key format: {course}_{subclass}_{level}  (3 segments, all lowercase)
--- examples: 'english_GET_beginner', 'mandarin_GM_hsk1', 'computer_web_beginner'
+-- examples: 'english_get_starter', 'mandarin_gm_level_1', 'computer_web_beginner'
 create table if not exists public.quiz_questions (
   id                   uuid primary key default gen_random_uuid(),
   course_key           text not null,
@@ -228,41 +228,41 @@ create policy "Admin update profiles" on public.profiles
 -- Replace embed URLs with your actual YouTube embed links.
 
 insert into public.videos (course_key, title, embed_url, duration_label, difficulty, sort_order) values
-  ('english_get_beginner',        'GET Beginner — Grammar Fundamentals',         'https://www.youtube.com/embed/dQw4w9WgXcQ', '12 min', 'Beginner',     1),
-  ('english_ielts_band5',         'IELTS Band 5 — Reading Strategies',           'https://www.youtube.com/embed/dQw4w9WgXcQ', '20 min', 'Intermediate', 1),
-  ('english_pte_pte_academic_65', 'PTE Academic 65 — Speaking & Writing',        'https://www.youtube.com/embed/dQw4w9WgXcQ', '18 min', 'Intermediate', 1),
-  ('mandarin_gm_hsk1',            'GM HSK 1 — Tones & Pinyin Introduction',      'https://www.youtube.com/embed/dQw4w9WgXcQ', '20 min', 'Beginner',     1),
-  ('mandarin_hsk_hsk1',           'HSK 1 — Basic Vocabulary & Phrases',          'https://www.youtube.com/embed/dQw4w9WgXcQ', '15 min', 'Beginner',     1),
-  ('mandarin_tocfl_band_a',       'TOCFL Band A — Everyday Conversations',       'https://www.youtube.com/embed/dQw4w9WgXcQ', '17 min', 'Beginner',     1),
-  ('computer_web_beginner',       'Web Beginner — Intro to HTML & CSS',          'https://www.youtube.com/embed/dQw4w9WgXcQ', '25 min', 'Beginner',     1),
-  ('computer_iot_beginner',       'IOT Beginner — Introduction to IoT Concepts', 'https://www.youtube.com/embed/dQw4w9WgXcQ', '22 min', 'Beginner',     1)
+  ('english_get_starter',              'GE Starter — Grammar Fundamentals',           'https://www.youtube.com/embed/dQw4w9WgXcQ', '12 min', 'Beginner',     1),
+  ('english_ielts_ac',                 'IELTS AC — Reading Strategies',               'https://www.youtube.com/embed/dQw4w9WgXcQ', '20 min', 'Intermediate', 1),
+  ('english_pte_pte_academic',         'PTE Academic — Speaking & Writing',           'https://www.youtube.com/embed/dQw4w9WgXcQ', '18 min', 'Intermediate', 1),
+  ('mandarin_gm_level_1',              'GM Level 1 — Tones & Pinyin Introduction',    'https://www.youtube.com/embed/dQw4w9WgXcQ', '20 min', 'Beginner',     1),
+  ('mandarin_hsk_hsk1',                'HSK 1 — Basic Vocabulary & Phrases',          'https://www.youtube.com/embed/dQw4w9WgXcQ', '15 min', 'Beginner',     1),
+  ('mandarin_tocfl_a1',                'TOCFL A1 — Everyday Conversations',           'https://www.youtube.com/embed/dQw4w9WgXcQ', '17 min', 'Beginner',     1),
+  ('computer_web_beginner',            'Web Beginner — Intro to HTML & CSS',          'https://www.youtube.com/embed/dQw4w9WgXcQ', '25 min', 'Beginner',     1),
+  ('computer_iot_beginner',            'IOT Beginner — Introduction to IoT Concepts', 'https://www.youtube.com/embed/dQw4w9WgXcQ', '22 min', 'Beginner',     1)
 on conflict do nothing;
 
 insert into public.materials (course_key, title, file_url, file_size_label, sort_order) values
-  ('english_get_beginner',        'GET Beginner Study Guide',               'https://example.com/files/get-beginner-guide.pdf',      '2.4 MB', 1),
-  ('english_ielts_band5',         'IELTS Band 5 Practice Workbook',         'https://example.com/files/ielts-band5-workbook.pdf',    '1.8 MB', 1),
-  ('english_pte_pte_academic_65', 'PTE Academic 65 Score Guide',            'https://example.com/files/pte-academic-65-guide.pdf',   '1.3 MB', 1),
-  ('mandarin_gm_hsk1',            'GM HSK 1 Pinyin Reference Sheet',        'https://example.com/files/gm-hsk1-pinyin.pdf',          '850 KB', 1),
-  ('mandarin_hsk_hsk1',           'HSK 1 Vocabulary List',                  'https://example.com/files/hsk1-vocab.pdf',              '600 KB', 1),
-  ('mandarin_tocfl_band_a',       'TOCFL Band A Character Writing Practice','https://example.com/files/tocfl-band-a-writing.pdf',    '3.2 MB', 1),
-  ('computer_web_beginner',       'Web Beginner HTML & CSS Cheat Sheet',    'https://example.com/files/web-beginner-cheatsheet.pdf', '512 KB', 1),
-  ('computer_iot_beginner',       'IOT Beginner Lab Manual',                'https://example.com/files/iot-beginner-lab.pdf',        '1.5 MB', 1)
+  ('english_get_starter',              'GE Starter Study Guide',                  'https://example.com/files/ge-starter-guide.pdf',        '2.4 MB', 1),
+  ('english_ielts_ac',                 'IELTS AC Practice Workbook',              'https://example.com/files/ielts-ac-workbook.pdf',        '1.8 MB', 1),
+  ('english_pte_pte_academic',         'PTE Academic Score Guide',                'https://example.com/files/pte-academic-guide.pdf',       '1.3 MB', 1),
+  ('mandarin_gm_level_1',              'GM Level 1 Pinyin Reference Sheet',       'https://example.com/files/gm-level1-pinyin.pdf',         '850 KB', 1),
+  ('mandarin_hsk_hsk1',                'HSK 1 Vocabulary List',                   'https://example.com/files/hsk1-vocab.pdf',               '600 KB', 1),
+  ('mandarin_tocfl_a1',                'TOCFL A1 Character Writing Practice',     'https://example.com/files/tocfl-a1-writing.pdf',         '3.2 MB', 1),
+  ('computer_web_beginner',            'Web Beginner HTML & CSS Cheat Sheet',     'https://example.com/files/web-beginner-cheatsheet.pdf',  '512 KB', 1),
+  ('computer_iot_beginner',            'IOT Beginner Lab Manual',                 'https://example.com/files/iot-beginner-lab.pdf',         '1.5 MB', 1)
 on conflict do nothing;
 
 insert into public.quiz_questions (course_key, question, options, correct_answer_index, sort_order) values
-  ('english_get_beginner',
+  ('english_get_starter',
    'Which sentence is grammatically correct?',
    '["She don''t like apples.", "She doesn''t likes apples.", "She doesn''t like apples.", "She not like apples."]',
    2, 1),
-  ('english_ielts_band5',
-   'In IELTS Writing Task 2, what is the minimum recommended word count?',
+  ('english_ielts_ac',
+   'In IELTS Academic Writing Task 2, what is the minimum recommended word count?',
    '["150 words", "250 words", "300 words", "200 words"]',
    1, 1),
-  ('english_pte_pte_academic_65',
+  ('english_pte_pte_academic',
    'PTE Academic scores are reported on a scale of:',
    '["0–9", "0–100", "1–500", "0–50"]',
    1, 1),
-  ('mandarin_gm_hsk1',
+  ('mandarin_gm_level_1',
    'How many tones does Standard Mandarin have?',
    '["3", "4", "5", "6"]',
    1, 1),
@@ -270,8 +270,8 @@ insert into public.quiz_questions (course_key, question, options, correct_answer
    'What is the pinyin for "hello" in Mandarin?',
    '["Xièxie", "Zàijiàn", "Nǐ hǎo", "Duìbuqǐ"]',
    2, 1),
-  ('mandarin_tocfl_band_a',
-   'Which of the following is a TOCFL Band A level topic?',
+  ('mandarin_tocfl_a1',
+   'Which of the following is a TOCFL A1 level topic?',
    '["Academic writing", "Everyday greetings", "Business negotiation", "Literary analysis"]',
    1, 1),
   ('computer_web_beginner',
@@ -313,7 +313,7 @@ create policy "Own activity_log" on public.activity_log
 -- ─── ENROLLMENTS ────────────────────────────────────────────
 -- Stores per-level course access for each student.
 -- course_key format: {course}_{subclass}_{level} (all lowercase)
--- e.g. 'english_ielts_band5', 'computer_web_beginner'
+-- e.g. 'english_ielts_ac', 'computer_web_beginner'
 create table if not exists public.enrollments (
   id          uuid        primary key default gen_random_uuid(),
   student_id  uuid        not null references public.profiles(id) on delete cascade,

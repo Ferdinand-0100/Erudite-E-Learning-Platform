@@ -35,7 +35,7 @@ describe('aggregateProgress', () => {
       fc.record({
         course_key: fc.oneof(
           // rows that match a known course
-          fc.constantFrom('english_get_beginner', 'english_ielts_band4', 'mandarin_gm_hsk1', 'computer_iot_beginner'),
+          fc.constantFrom('english_get_starter', 'english_ielts_ac', 'mandarin_gm_level_1', 'computer_iot_beginner'),
           // rows that don't match any course
           fc.constant('unknown_course_level'),
         ),
@@ -78,8 +78,8 @@ describe('aggregateProgress', () => {
 
   it('correctly averages multiple rows for the same course', () => {
     const rows = [
-      { course_key: 'english_get_beginner', percent: 40 },
-      { course_key: 'english_ielts_band4', percent: 60 },
+      { course_key: 'english_get_starter', percent: 40 },
+      { course_key: 'english_ielts_ac', percent: 60 },
     ]
     const result = aggregateProgress(rows, MOCK_CONFIG)
     expect(result.english).toBe(50)
@@ -89,8 +89,8 @@ describe('aggregateProgress', () => {
 
   it('rounds to nearest integer', () => {
     const rows = [
-      { course_key: 'english_get_beginner', percent: 0 },
-      { course_key: 'english_ielts_band4', percent: 1 },
+      { course_key: 'english_get_starter', percent: 0 },
+      { course_key: 'english_ielts_ac', percent: 1 },
     ]
     const result = aggregateProgress(rows, MOCK_CONFIG)
     // (0 + 1) / 2 = 0.5 → rounds to 1

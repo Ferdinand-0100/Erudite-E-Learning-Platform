@@ -29,7 +29,7 @@ function ProtectedRoute({ children }) {
 
 function MandarinTabRedirect() {
   const { tab } = useParams()
-  return <Navigate to={`/mandarin/GM/hsk1/${tab}`} replace />
+  return <Navigate to={`/mandarin/GM/level_1/${tab}`} replace />
 }
 
 function ComputerTabRedirect() {
@@ -39,17 +39,17 @@ function ComputerTabRedirect() {
 
 function EnglishGETTabRedirect() {
   const { tab } = useParams()
-  return <Navigate to={`/english/GET/beginner/${tab}`} replace />
+  return <Navigate to={`/english/GET/starter/${tab}`} replace />
 }
 
 function EnglishIELTSTabRedirect() {
   const { tab } = useParams()
-  return <Navigate to={`/english/IELTS/band4/${tab}`} replace />
+  return <Navigate to={`/english/IELTS/ac/${tab}`} replace />
 }
 
 function EnglishPTETabRedirect() {
   const { tab } = useParams()
-  return <Navigate to={`/english/PTE/pte_core/${tab}`} replace />
+  return <Navigate to={`/english/PTE/pte_academic/${tab}`} replace />
 }
 
 export default function App() {

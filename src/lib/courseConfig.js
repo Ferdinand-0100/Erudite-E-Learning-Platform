@@ -9,6 +9,13 @@ function computerLevels() {
   ]
 }
 
+function gmLevels() {
+  return Array.from({ length: 12 }, (_, i) => ({
+    key: `level_${i + 1}`,
+    label: `Level ${i + 1}`,
+  }))
+}
+
 export const COURSE_CONFIG = {
   english: {
     label: 'English',
@@ -17,35 +24,35 @@ export const COURSE_CONFIG = {
     subclasses: {
       GET: {
         label: 'GE',
-        defaultLevel: 'beginner',
+        defaultLevel: 'starter',
         levels: [
-          { key: 'beginner',           label: 'Beginner' },
-          { key: 'elementary',         label: 'Elementary' },
-          { key: 'pre_intermediate',   label: 'Pre-Intermediate' },
-          { key: 'intermediate',       label: 'Intermediate' },
-          { key: 'upper_intermediate', label: 'Upper-Intermediate' },
-          { key: 'advanced',           label: 'Advanced' },
+          { key: 'starter',           label: 'Starter' },
+          { key: 'elementary',        label: 'Elementary' },
+          { key: 'pre_intermediate',  label: 'Pre-Intermediate' },
+          { key: 'intermediate',      label: 'Intermediate' },
+          { key: 'upper_intermediate',label: 'Upper-Intermediate' },
+          { key: 'advanced',          label: 'Advanced' },
+          { key: 'proficient',        label: 'Proficient' },
         ],
       },
       IELTS: {
         label: 'IELTS',
-        defaultLevel: 'band4',
+        defaultLevel: 'ac',
         levels: [
-          { key: 'band4',  label: 'Band 4' },
-          { key: 'band5',  label: 'Band 5' },
-          { key: 'band6',  label: 'Band 6' },
-          { key: 'band7',  label: 'Band 7' },
-          { key: 'band75', label: 'Band 7.5+' },
+          { key: 'ac',        label: 'AC' },
+          { key: 'gt',        label: 'GT' },
+          { key: 'ukvii',     label: 'UKVII' },
+          { key: 'lifestyle', label: 'Lifestyle' },
         ],
       },
       PTE: {
         label: 'PTE',
-        defaultLevel: 'pte_core',
+        defaultLevel: 'pte_academic',
         levels: [
-          { key: 'pte_core',        label: 'PTE Core' },
-          { key: 'pte_academic_50', label: 'PTE Academic (50)' },
-          { key: 'pte_academic_65', label: 'PTE Academic (65)' },
-          { key: 'pte_academic_79', label: 'PTE Academic (79+)' },
+          { key: 'pte_academic',      label: 'PTE Academic' },
+          { key: 'pte_academic_ukvii',label: 'PTE Academic UKVII' },
+          { key: 'pte_core',          label: 'PTE Core' },
+          { key: 'pte_home',          label: 'PTE Home' },
         ],
       },
     },
@@ -57,15 +64,8 @@ export const COURSE_CONFIG = {
     subclasses: {
       GM: {
         label: 'GM',
-        defaultLevel: 'hsk1',
-        levels: [
-          { key: 'hsk1', label: 'HSK 1' },
-          { key: 'hsk2', label: 'HSK 2' },
-          { key: 'hsk3', label: 'HSK 3' },
-          { key: 'hsk4', label: 'HSK 4' },
-          { key: 'hsk5', label: 'HSK 5' },
-          { key: 'hsk6', label: 'HSK 6' },
-        ],
+        defaultLevel: 'level_1',
+        levels: gmLevels(),
       },
       HSK: {
         label: 'HSK',
@@ -81,11 +81,14 @@ export const COURSE_CONFIG = {
       },
       TOCFL: {
         label: 'TOCFL',
-        defaultLevel: 'band_a',
+        defaultLevel: 'a1',
         levels: [
-          { key: 'band_a', label: 'Band A' },
-          { key: 'band_b', label: 'Band B' },
-          { key: 'band_c', label: 'Band C' },
+          { key: 'a1', label: 'A1' },
+          { key: 'a2', label: 'A2' },
+          { key: 'b1', label: 'B1' },
+          { key: 'b2', label: 'B2' },
+          { key: 'c1', label: 'C1' },
+          { key: 'c2', label: 'C2' },
         ],
       },
     },
