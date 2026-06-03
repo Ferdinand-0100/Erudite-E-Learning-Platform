@@ -23,23 +23,63 @@
 /* ── LOGO ──────────────────────────────────────────────────────────────────── */
 
 .logo {
-  padding: 24px 22px 18px;
+  position: relative;
+  padding: 22px 20px 20px;
   border-bottom: 2px dashed var(--color-border);
+  overflow: hidden;
+
+  /* Warm tinted background — echoes the paper tone with a hint of accent */
+  background: linear-gradient(135deg, rgba(255,77,77,0.08) 0%, rgba(45,93,161,0.06) 100%);
+}
+
+/* Large watermark logo behind the text */
+.logo::before {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 110px;
+  height: 110px;
+  background: url('/images/Logo.png') center / contain no-repeat;
+  opacity: 0.10;
+  pointer-events: none;
+}
+
+.logoInner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  position: relative; /* sits above the watermark pseudo-element */
+  z-index: 1;
+}
+
+.logoImg {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: var(--radius-wobbly-sm);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 3px;
+  box-shadow: var(--shadow-hover);
 }
 
 .logoMark {
   display: block;
   font-family: var(--font-heading);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--color-text);
+  line-height: 1.2;
 }
 
 .logoSub {
   font-family: var(--font-body);
   font-size: 11px;
   color: var(--color-text-3);
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 /* ── NAV ───────────────────────────────────────────────────────────────────── */

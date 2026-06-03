@@ -44,8 +44,13 @@ export default function Layout() {
 
         {/* Logo */}
         <div className={styles.logo}>
-          <span className={styles.logoMark}>Erudite English</span>
-          <span className={styles.logoSub}>Learning Platform</span>
+          <div className={styles.logoInner}>
+            <img src="/images/Logo.png" alt="Erudite logo" className={styles.logoImg} />
+            <div>
+              <span className={styles.logoMark}>Erudite English</span>
+              <span className={styles.logoSub}>Learning Platform</span>
+            </div>
+          </div>
         </div>
 
         {/* Navigation */}
