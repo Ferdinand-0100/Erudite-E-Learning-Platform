@@ -63,6 +63,12 @@ export default function Home() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
+  const enrolledCourseCount = enrollmentLoading
+    ? null
+    : Object.keys(COURSE_CONFIG).filter(courseKey =>
+        enrollments.some(k => k.startsWith(`${courseKey}_`))
+      ).length
+
   useEffect(() => {
     if (!user?.id) return
     setLoading(true)
@@ -107,7 +113,9 @@ export default function Home() {
         </div>
         <div style={styles.bannerStat}>
           <BookOpen size={18} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
-          <span style={styles.bannerStatText}>{Object.keys(COURSE_CONFIG).length} courses available</span>
+          <span style={styles.bannerStatText}>
+            {enrolledCourseCount === null ? '…' : enrolledCourseCount} {enrolledCourseCount === 1 ? 'course' : 'courses'} enrolled
+          </span>
         </div>
       </div>
 

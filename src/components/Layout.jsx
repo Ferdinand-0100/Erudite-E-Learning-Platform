@@ -184,18 +184,18 @@ export default function Layout() {
             )
           })}
 
-        </nav>
+          {/* Extra section — inside nav so it scrolls with the rest */}
+          <div className={styles.sectionLabel} style={{ marginTop: 8 }}>Extra</div>
+          <NavLink
+            to="/extra"
+            className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <BookOpen size={14} aria-hidden />
+            <span>Study Guides</span>
+          </NavLink>
 
-        {/* Extra section */}
-        <div className={styles.sectionLabel} style={{ marginTop: 8 }}>Extra</div>
-        <NavLink
-          to="/extra"
-          className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-          onClick={() => setIsSidebarOpen(false)}
-        >
-          <BookOpen size={14} aria-hidden />
-          <span>Study Guides</span>
-        </NavLink>
+        </nav>
 
         {/* Sidebar footer */}
         <div className={styles.sidebarFooter}>
