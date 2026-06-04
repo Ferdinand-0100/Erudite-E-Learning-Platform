@@ -17,7 +17,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general' }
+const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general', is_private: false }
 
 // Essay type options — maps to the edge function rubric keys
 const ESSAY_TYPE_OPTIONS = [
@@ -51,6 +51,7 @@ export default function AdminEssay() {
   const [form, setForm, clearForm] = useAppState('admin-essay-form', emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [viewMode, setViewMode] = useAppState('admin-essay-view-mode', 'public')
 
   // Image upload state
   const [imageFile, setImageFile] = useState(null)
@@ -78,7 +79,7 @@ export default function AdminEssay() {
   const [subsLoading, setSubsLoading] = useState(false)
   const [expandedSub, setExpandedSub] = useState(null)
 
-  useEffect(() => { fetchPrompts() }, [courseKey])
+  useEffect(() => { fetchPrompts() }, [courseKey, viewMode])
 
   async function fetchSubmissions(promptId) {
     setSelectedPromptId(promptId)
@@ -95,12 +96,14 @@ export default function AdminEssay() {
 
   async function fetchPrompts() {
     setLoading(true)
-    const { data, error: err } = await supabase
+    let query = supabase
       .from('essay_prompts')
       .select('*')
-      .eq('course_key', courseKey)
+      .eq('is_private', viewMode === 'private')
       .order('sort_order')
       .order('created_at', { ascending: false })
+    if (viewMode === 'public') query = query.eq('course_key', courseKey)
+    const { data, error: err } = await query
     if (err) setError(err.message)
     else setPrompts(data || [])
     setLoading(false)
@@ -113,7 +116,7 @@ export default function AdminEssay() {
 
   function startEdit(p) {
     setEditingId(p.id)
-    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general' })
+    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general', is_private: p.is_private ?? false })
     setExistingImageUrl(p.image_url ?? null)
     clearImageSelection()
     setError(null)
@@ -145,7 +148,7 @@ export default function AdminEssay() {
       imageUrl = urlData.publicUrl
     }
 
-    const payload = { course_key: courseKey, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl, sort_order: editingId ? undefined : prompts.length }
+    const payload = { course_key: form.is_private ? null : courseKey, is_private: form.is_private ?? false, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl, sort_order: editingId ? undefined : prompts.length }
     // remove undefined keys
     if (payload.sort_order === undefined) delete payload.sort_order
     let err
@@ -184,9 +187,25 @@ export default function AdminEssay() {
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Essay Prompts</h1>
 
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <CourseKeySelector value={courseKey} onChange={setCourseKey} />
+      {/* Public / Private switcher */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
+        {['public', 'private'].map(mode => (
+          <button key={mode} type="button" onClick={() => { setViewMode(mode); cancelEdit(); setForm(f => ({ ...f, is_private: mode === 'private' })) }} style={{ padding: '6px 18px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface)', color: viewMode === mode ? '#fff' : 'var(--color-text-2)', boxShadow: viewMode === mode ? 'var(--shadow-hover)' : 'none', transform: viewMode === mode ? 'translate(2px,2px)' : 'none', transition: 'all var(--transition-base)' }}>
+            {mode === 'public' ? 'Public' : 'Private'}
+          </button>
+        ))}
       </div>
+
+      {viewMode === 'public' && (
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <CourseKeySelector value={courseKey} onChange={setCourseKey} />
+        </div>
+      )}
+      {viewMode === 'private' && (
+        <div style={{ marginBottom: 'var(--space-4)', padding: '10px 14px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)' }}>
+          Private essay prompts are not tied to a course. They can only be accessed by students through assigned Study Guides.
+        </div>
+      )}
 
       {error && (
         <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)', fontSize: '14px' }}>
@@ -195,7 +214,7 @@ export default function AdminEssay() {
       )}
 
       <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Prompt' : 'Add Prompt'}</h2>
+        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Prompt' : `Add ${viewMode === 'private' ? 'Private' : 'Public'} Prompt`}</h2>
 
         <div>
           <label style={labelStyle}>Title *</label>
@@ -285,7 +304,7 @@ export default function AdminEssay() {
       {loading ? (
         <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading…</p>
       ) : prompts.length === 0 ? (
-        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No prompts for this course key.</p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No {viewMode} prompts{viewMode === 'public' ? ' for this course key' : ''}.</p>
       ) : (
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>

@@ -142,6 +142,7 @@ export default function EssayChecker({ courseKey }) {
       .from('essay_prompts')
       .select('*')
       .eq('course_key', courseKey)
+      .eq('is_private', false)
       .order('sort_order')
       .then(({ data }) => {
         const list = data || []

@@ -18,7 +18,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', file: null, tags: [], difficulty: 'Beginner' }
+const emptyForm = { title: '', file: null, tags: [], difficulty: 'Beginner', is_private: false }
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -98,10 +98,11 @@ export default function AdminMaterials() {
   const [editingId, setEditingId, clearEditingId] = useAppState('admin-materials-editing-id', null)
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [viewMode, setViewMode] = useAppState('admin-materials-view-mode', 'public')
 
   useEffect(() => {
     fetchMaterials()
-  }, [courseKey])
+  }, [courseKey, viewMode])
 
   useEffect(() => {
     supabase.from('materials').select('tags').then(({ data }) => {
@@ -113,12 +114,9 @@ export default function AdminMaterials() {
   async function fetchMaterials() {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase
-      .from('materials')
-      .select('*')
-      .eq('course_key', courseKey)
-      .order('sort_order')
-      .order('created_at', { ascending: false })
+    let query = supabase.from('materials').select('*').eq('is_private', viewMode === 'private').order('sort_order').order('created_at', { ascending: false })
+    if (viewMode === 'public') query = query.eq('course_key', courseKey)
+    const { data, error: err } = await query
     if (err) setError(err.message)
     else setMaterials(data || [])
     setLoading(false)
@@ -135,7 +133,7 @@ export default function AdminMaterials() {
 
   function startEdit(material) {
     setEditingId(material.id)
-    const f = { title: material.title, file: null, tags: material.tags || [], difficulty: material.difficulty || 'Beginner' }
+    const f = { title: material.title, file: null, tags: material.tags || [], difficulty: material.difficulty || 'Beginner', is_private: material.is_private ?? false }
     setForm(f)
     setError(null)
   }
@@ -156,7 +154,7 @@ export default function AdminMaterials() {
       setSubmitting(true)
       const { error: err } = await supabase
         .from('materials')
-        .update({ title: form.title, tags: form.tags || [], difficulty: form.difficulty })
+        .update({ title: form.title, tags: form.tags || [], difficulty: form.difficulty, is_private: form.is_private, course_key: form.is_private ? null : courseKey })
         .eq('id', editingId)
       if (err) {
         setError(err.message)
@@ -180,7 +178,8 @@ export default function AdminMaterials() {
     setSubmitting(true)
 
     const file = form.file
-    const path = `${courseKey}/${file.name}`
+    const prefix = form.is_private ? 'private' : courseKey
+    const path = `${prefix}/${file.name}`
 
     const { error: uploadErr } = await supabase.storage
       .from('materials')
@@ -197,7 +196,8 @@ export default function AdminMaterials() {
     const fileUrl = urlData.publicUrl
 
     const { error: insertErr } = await supabase.from('materials').insert({
-      course_key: courseKey,
+      course_key: form.is_private ? null : courseKey,
+      is_private: form.is_private,
       title: form.title,
       file_url: fileUrl,
       file_size_label: formatSize(file.size),
@@ -255,72 +255,58 @@ export default function AdminMaterials() {
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Materials</h1>
 
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <CourseKeySelector value={courseKey} onChange={setCourseKey} />
+      {/* Public / Private switcher */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
+        {['public', 'private'].map(mode => (
+          <button key={mode} type="button" onClick={() => { setViewMode(mode); cancelEdit(); setForm(f => ({ ...f, is_private: mode === 'private' })) }} style={{ padding: '6px 18px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface)', color: viewMode === mode ? '#fff' : 'var(--color-text-2)', boxShadow: viewMode === mode ? 'var(--shadow-hover)' : 'none', transform: viewMode === mode ? 'translate(2px,2px)' : 'none', transition: 'all var(--transition-base)' }}>
+            {mode === 'public' ? 'Public' : 'Private'}
+          </button>
+        ))}
       </div>
 
+      {viewMode === 'public' && (
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <CourseKeySelector value={courseKey} onChange={setCourseKey} />
+        </div>
+      )}
+      {viewMode === 'private' && (
+        <div style={{ marginBottom: 'var(--space-4)', padding: '10px 14px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)' }}>
+          Private materials are not tied to a course. They can only be accessed by students through assigned Study Guides.
+        </div>
+      )}
+
       {error && (
-        <div style={{
-          background: 'var(--color-danger-bg)',
-          color: 'var(--color-danger)',
-          border: '1px solid var(--color-danger)',
-          borderRadius: 'var(--radius-sm)',
-          padding: 'var(--space-3) var(--space-4)',
-          marginBottom: 'var(--space-4)',
-          fontSize: '14px',
-        }}>
+        <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)', fontSize: '14px' }}>
           {error}
         </div>
       )}
 
       {/* Add / Edit form */}
-      <form onSubmit={handleSubmit} style={{
-        background: 'var(--color-surface)',
-        border: '2px solid var(--color-border)',
-        borderRadius: 'var(--radius-wobbly-sm)',
-        padding: 'var(--space-4)',
-        marginBottom: 'var(--space-6)',
-        display: 'grid',
-        gap: 'var(--space-3)',
-        boxShadow: 'var(--shadow-card)',
-      }}>
+      <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
         <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
-          {editingId ? 'Edit Material' : 'Add Material'}
+          {editingId ? 'Edit Material' : `Add ${viewMode === 'private' ? 'Private' : 'Public'} Material`}
         </h2>
 
         <div>
           <label style={labelStyle}>Title *</label>
-          <input
-            style={inputStyle}
-            name="title"
-            value={form.title}
-            onChange={handleField}
-            required
-            placeholder="Material title"
-          />
+          <input style={inputStyle} name="title" value={form.title} onChange={handleField} required placeholder="Material title" />
         </div>
 
         {!editingId && (
           <div>
             <label style={labelStyle}>PDF File *</label>
-            <input
-              style={inputStyle}
-              type="file"
-              accept="application/pdf"
-              onChange={handleField}
-              required
-            />
+            <input style={inputStyle} type="file" accept="application/pdf" onChange={handleField} required />
           </div>
         )}
 
         <div>
-            <label style={labelStyle}>Difficulty</label>
-            <select style={inputStyle} name="difficulty" value={form.difficulty} onChange={handleField}>
-              <option>Beginner</option>
-              <option>Intermediate</option>
-              <option>Advanced</option>
-            </select>
-          </div>
+          <label style={labelStyle}>Difficulty</label>
+          <select style={inputStyle} name="difficulty" value={form.difficulty} onChange={handleField}>
+            <option>Beginner</option>
+            <option>Intermediate</option>
+            <option>Advanced</option>
+          </select>
+        </div>
 
         <div>
           <label style={labelStyle}>Tags</label>
@@ -331,11 +317,7 @@ export default function AdminMaterials() {
           <button type="submit" style={btnPrimary} disabled={submitting || uploading}>
             {uploading ? 'Uploading…' : submitting ? 'Saving…' : editingId ? 'Update Material' : 'Add Material'}
           </button>
-          {editingId && (
-            <button type="button" style={btnSecondary} onClick={cancelEdit}>
-              Cancel
-            </button>
-          )}
+          {editingId && <button type="button" style={btnSecondary} onClick={cancelEdit}>Cancel</button>}
         </div>
       </form>
 
@@ -343,7 +325,7 @@ export default function AdminMaterials() {
       {loading ? (
         <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading…</p>
       ) : materials.length === 0 ? (
-        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No materials for this course key.</p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No {viewMode} materials{viewMode === 'public' ? ' for this course key' : ''}.</p>
       ) : (
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>

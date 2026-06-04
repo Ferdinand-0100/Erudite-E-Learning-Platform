@@ -32,6 +32,7 @@ export default function VideoList({ courseKey }) {
       .from('videos')
       .select('*')
       .eq('course_key', courseKey)
+      .eq('is_private', false)
       .order('sort_order')
       .then(({ data }) => {
         setVideos(data || [])

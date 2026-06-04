@@ -21,7 +21,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', embed_url: '', duration_label: '', difficulty: 'Beginner', tags: [] }
+const emptyForm = { title: '', embed_url: '', duration_label: '', difficulty: 'Beginner', tags: [], is_private: false }
 
 const inputStyle = { width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box' }
 const labelStyle = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }
@@ -39,8 +39,10 @@ export default function AdminVideos() {
   const [form, setForm, clearForm] = useAppState('admin-videos-form', emptyForm)
   const [editingId, setEditingId, clearEditingId] = useAppState('admin-videos-editing-id', null)
   const [submitting, setSubmitting] = useState(false)
+  // View mode: 'public' | 'private'
+  const [viewMode, setViewMode] = useAppState('admin-videos-view-mode', 'public')
 
-  useEffect(() => { fetchVideos() }, [courseKey])
+  useEffect(() => { fetchVideos() }, [courseKey, viewMode])
 
   // Fetch all tags across all videos for autocomplete
   useEffect(() => {
@@ -53,7 +55,9 @@ export default function AdminVideos() {
   async function fetchVideos() {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase.from('videos').select('*').eq('course_key', courseKey).order('sort_order').order('created_at', { ascending: false })
+    let query = supabase.from('videos').select('*').eq('is_private', viewMode === 'private').order('sort_order').order('created_at', { ascending: false })
+    if (viewMode === 'public') query = query.eq('course_key', courseKey)
+    const { data, error: err } = await query
     if (err) setError(err.message)
     else setVideos(data || [])
     setLoading(false)
@@ -78,7 +82,7 @@ export default function AdminVideos() {
 
   function startEdit(video) {
     setEditingId(video.id)
-    const f = { title: video.title, embed_url: video.embed_url, duration_label: video.duration_label || '', difficulty: video.difficulty, tags: video.tags || [] }
+    const f = { title: video.title, embed_url: video.embed_url, duration_label: video.duration_label || '', difficulty: video.difficulty, tags: video.tags || [], is_private: video.is_private ?? false }
     setForm(f)
     setError(null)
   }
@@ -91,8 +95,17 @@ export default function AdminVideos() {
     if (!urlCheck.valid) { setError(urlCheck.error); return }
     setSubmitting(true)
     setError(null)
-    const nextOrder = editingId ? undefined : videos.length  // new items go to end
-    const payload = { course_key: courseKey, title: form.title, embed_url: normaliseVideoUrl(form.embed_url), duration_label: form.duration_label || null, difficulty: form.difficulty, tags: form.tags || [], ...(nextOrder !== undefined ? { sort_order: nextOrder } : {}) }
+    const nextOrder = editingId ? undefined : videos.length
+    const payload = {
+      is_private: form.is_private,
+      course_key: form.is_private ? null : courseKey,
+      title: form.title,
+      embed_url: normaliseVideoUrl(form.embed_url),
+      duration_label: form.duration_label || null,
+      difficulty: form.difficulty,
+      tags: form.tags || [],
+      ...(nextOrder !== undefined ? { sort_order: nextOrder } : {}),
+    }
     let err
     if (editingId) { ;({ error: err } = await supabase.from('videos').update(payload).eq('id', editingId)) }
     else { ;({ error: err } = await supabase.from('videos').insert(payload)) }
@@ -121,12 +134,30 @@ export default function AdminVideos() {
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Videos</h1>
-      <div style={{ marginBottom: 'var(--space-6)' }}><CourseKeySelector value={courseKey} onChange={setCourseKey} /></div>
+
+      {/* Public / Private switcher */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
+        {['public', 'private'].map(mode => (
+          <button key={mode} type="button" onClick={() => { setViewMode(mode); cancelEdit(); setForm(f => ({ ...f, is_private: mode === 'private' })) }} style={{ padding: '6px 18px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface)', color: viewMode === mode ? '#fff' : 'var(--color-text-2)', boxShadow: viewMode === mode ? 'var(--shadow-hover)' : 'none', transform: viewMode === mode ? 'translate(2px,2px)' : 'none', transition: 'all var(--transition-base)' }}>
+            {mode === 'public' ? 'Public' : 'Private'}
+          </button>
+        ))}
+      </div>
+
+      {/* Course selector — only for public */}
+      {viewMode === 'public' && (
+        <div style={{ marginBottom: 'var(--space-6)' }}><CourseKeySelector value={courseKey} onChange={setCourseKey} /></div>
+      )}
+      {viewMode === 'private' && (
+        <div style={{ marginBottom: 'var(--space-4)', padding: '10px 14px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)' }}>
+          Private videos are not tied to a course. They can only be accessed by students through assigned Study Guides.
+        </div>
+      )}
 
       {error && <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)', fontSize: '14px' }}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Video' : 'Add Video'}</h2>
+        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Video' : `Add ${viewMode === 'private' ? 'Private' : 'Public'} Video`}</h2>
 
         <div>
           <label style={labelStyle}>Title *</label>
@@ -175,7 +206,7 @@ export default function AdminVideos() {
       {loading ? (
         <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading…</p>
       ) : videos.length === 0 ? (
-        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No videos for this course key.</p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No {viewMode} videos{viewMode === 'public' ? ' for this course key' : ''}.</p>
       ) : (
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>

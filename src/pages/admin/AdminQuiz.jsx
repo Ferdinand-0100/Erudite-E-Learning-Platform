@@ -21,7 +21,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyPackageForm = { title: '', description: '', difficulty: 'Beginner', tags: [] }
+const emptyPackageForm = { title: '', description: '', difficulty: 'Beginner', tags: [], is_private: false }
 const emptyMCQ = { question: '', options: ['', '', '', ''], correct_answer_index: 0, explanation: '' }
 const emptyFITB = { paragraph: '', answers: [] }
 
@@ -41,6 +41,7 @@ export default function AdminQuiz() {
   const [allTags, setAllTags] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [viewMode, setViewMode] = useAppState('admin-quiz-view-mode', 'public')
 
   // Package form
   const [pkgForm, setPkgForm, clearPkgForm] = useAppState('admin-quiz-pkg-form', emptyPackageForm)
@@ -60,7 +61,7 @@ export default function AdminQuiz() {
   const [qSubmitting, setQSubmitting] = useState(false)
   const [qError, setQError] = useState(null)
 
-  useEffect(() => { fetchPackages() }, [courseKey])
+  useEffect(() => { fetchPackages() }, [courseKey, viewMode])
 
   // Re-fetch questions when selectedPkg changes
   useEffect(() => {
@@ -76,12 +77,14 @@ export default function AdminQuiz() {
   async function fetchPackages() {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase
+    let query = supabase
       .from('quiz_packages')
       .select('*, quiz_questions(count)')
-      .eq('course_key', courseKey)
+      .eq('is_private', viewMode === 'private')
       .order('sort_order')
       .order('created_at', { ascending: false })
+    if (viewMode === 'public') query = query.eq('course_key', courseKey)
+    const { data, error: err } = await query
     if (err) setError(err.message)
     else setPackages((data || []).map(p => ({ ...p, question_count: p.quiz_questions?.[0]?.count ?? 0 })))
     setLoading(false)
@@ -120,7 +123,7 @@ export default function AdminQuiz() {
     if (!pkgForm.title.trim()) { setError('Title is required'); return }
     setPkgSubmitting(true)
     setError(null)
-    const payload = { course_key: courseKey, title: pkgForm.title.trim(), description: pkgForm.description.trim() || null, difficulty: pkgForm.difficulty, tags: pkgForm.tags, ...(editingPkgId ? {} : { sort_order: packages.length }) }
+    const payload = { course_key: pkgForm.is_private ? null : courseKey, is_private: pkgForm.is_private ?? false, title: pkgForm.title.trim(), description: pkgForm.description.trim() || null, difficulty: pkgForm.difficulty, tags: pkgForm.tags, ...(editingPkgId ? {} : { sort_order: packages.length }) }
     let err
     if (editingPkgId) { ;({ error: err } = await supabase.from('quiz_packages').update(payload).eq('id', editingPkgId)) }
     else { ;({ error: err } = await supabase.from('quiz_packages').insert(payload)) }
@@ -131,7 +134,7 @@ export default function AdminQuiz() {
 
   function startEditPkg(pkg) {
     setEditingPkgId(pkg.id)
-    setPkgForm({ title: pkg.title, description: pkg.description || '', difficulty: pkg.difficulty, tags: pkg.tags || [] })
+    setPkgForm({ title: pkg.title, description: pkg.description || '', difficulty: pkg.difficulty, tags: pkg.tags || [], is_private: pkg.is_private ?? false })
     setError(null)
   }
 
@@ -346,35 +349,52 @@ export default function AdminQuiz() {
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 960 }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Quiz Packages</h1>
-      <div style={{ marginBottom: 'var(--space-6)' }}><CourseKeySelector value={courseKey} onChange={setCourseKey} /></div>
+
+      {/* Public / Private switcher */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
+        {['public', 'private'].map(mode => (
+          <button key={mode} type="button" onClick={() => { setViewMode(mode); setEditingPkgId(null); clearPkgForm(); setPkgForm(f => ({ ...f, is_private: mode === 'private' })) }} style={{ padding: '6px 18px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface)', color: viewMode === mode ? '#fff' : 'var(--color-text-2)', boxShadow: viewMode === mode ? 'var(--shadow-hover)' : 'none', transform: viewMode === mode ? 'translate(2px,2px)' : 'none', transition: 'all var(--transition-base)' }}>
+            {mode === 'public' ? 'Public' : 'Private'}
+          </button>
+        ))}
+      </div>
+
+      {viewMode === 'public' && (
+        <div style={{ marginBottom: 'var(--space-6)' }}><CourseKeySelector value={courseKey} onChange={setCourseKey} /></div>
+      )}
+      {viewMode === 'private' && (
+        <div style={{ marginBottom: 'var(--space-4)', padding: '10px 14px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)' }}>
+          Private quiz packages are not tied to a course. They can only be accessed by students through assigned Study Guides.
+        </div>
+      )}
 
       {error && <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)', fontSize: 14 }}>{error}</div>}
 
       {/* Package form */}
       <form onSubmit={handlePkgSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{editingPkgId ? 'Edit Package' : 'Create Quiz Package'}</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{editingPkgId ? 'Edit Package' : `Create ${viewMode === 'private' ? 'Private' : 'Public'} Quiz Package`}</h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
           <div>
-            <label style={labelStyle}>Package name *</label>
-            <input style={inputStyle} value={pkgForm.title} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, title: v })) }} required placeholder="e.g. Grammar Fundamentals" />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }}>Package name *</label>
+            <input style={{ width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box' }} value={pkgForm.title} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, title: v })) }} required placeholder="e.g. Grammar Fundamentals" />
           </div>
           <div>
-            <label style={labelStyle}>Difficulty</label>
-            <select style={inputStyle} value={pkgForm.difficulty} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, difficulty: v })) }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }}>Difficulty</label>
+            <select style={{ width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box' }} value={pkgForm.difficulty} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, difficulty: v })) }}>
               <option>Beginner</option><option>Intermediate</option><option>Advanced</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label style={labelStyle}>Description (optional)</label>
-          <textarea style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} value={pkgForm.description} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, description: v })) }} placeholder="Brief description of this quiz package" />
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }}>Description (optional)</label>
+          <textarea style={{ width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box', minHeight: 60, resize: 'vertical' }} value={pkgForm.description} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, description: v })) }} placeholder="Brief description of this quiz package" />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }}>
           <div>
-            <label style={labelStyle}>Tags</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }}>Tags</label>
             <TagInput value={pkgForm.tags} onChange={tags => { setPkgForm(f => ({ ...f, tags })) }} existingTags={allTags} placeholder="Add tags…" />
           </div>
         </div>

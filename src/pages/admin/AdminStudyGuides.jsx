@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, Video, FileText, HelpCircle, Search, X } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Video, FileText, HelpCircle, Search, PenLine } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const inputStyle = { width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box', fontFamily: 'inherit' }
@@ -8,9 +8,9 @@ const btnPrimary = { padding: '8px 16px', background: 'var(--color-accent)', col
 const btnSecondary = { padding: '8px 16px', background: 'var(--color-surface)', color: 'var(--color-text-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }
 const btnDanger = { padding: '6px 10px', background: 'var(--color-surface)', color: 'var(--color-danger)', border: '2px solid var(--color-danger)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }
 
-const TYPE_ICONS = { video: Video, material: FileText, quiz_package: HelpCircle }
-const TYPE_LABELS = { video: 'Video', material: 'Material', quiz_package: 'Quiz Package' }
-const TYPE_COLORS = { video: { bg: '#dbeafe', color: '#1e40af' }, material: { bg: '#dcfce7', color: '#166534' }, quiz_package: { bg: '#fef3c7', color: '#92400e' } }
+const TYPE_ICONS = { video: Video, material: FileText, quiz_package: HelpCircle, essay_prompt: PenLine }
+const TYPE_LABELS = { video: 'Video', material: 'Material', quiz_package: 'Quiz Package', essay_prompt: 'Essay Prompt' }
+const TYPE_COLORS = { video: { bg: '#dbeafe', color: '#1e40af' }, material: { bg: '#dcfce7', color: '#166534' }, quiz_package: { bg: '#fef3c7', color: '#92400e' }, essay_prompt: { bg: '#ede9fe', color: '#6d28d9' } }
 
 export default function AdminStudyGuides() {
   const [guides, setGuides] = useState([])
@@ -31,6 +31,7 @@ export default function AdminStudyGuides() {
   // Item picker
   const [showPicker, setShowPicker] = useState(false)
   const [pickerType, setPickerType] = useState('video')
+  const [pickerVisibility, setPickerVisibility] = useState('public')
   const [pickerSearch, setPickerSearch] = useState('')
   const [pickerResults, setPickerResults] = useState([])
   const [pickerLoading, setPickerLoading] = useState(false)
@@ -64,17 +65,19 @@ export default function AdminStudyGuides() {
       .select('*')
       .eq('guide_id', guideId)
       .order('sort_order')
-    // Resolve item details
     const resolved = await Promise.all((data || []).map(async item => {
       let detail = null
       if (item.item_type === 'video') {
-        const { data: d } = await supabase.from('videos').select('title, course_key').eq('id', item.item_id).single()
+        const { data: d } = await supabase.from('videos').select('title, course_key, is_private').eq('id', item.item_id).single()
         detail = d
       } else if (item.item_type === 'material') {
-        const { data: d } = await supabase.from('materials').select('title, course_key').eq('id', item.item_id).single()
+        const { data: d } = await supabase.from('materials').select('title, course_key, is_private').eq('id', item.item_id).single()
         detail = d
       } else if (item.item_type === 'quiz_package') {
-        const { data: d } = await supabase.from('quiz_packages').select('title, course_key').eq('id', item.item_id).single()
+        const { data: d } = await supabase.from('quiz_packages').select('title, course_key, is_private').eq('id', item.item_id).single()
+        detail = d
+      } else if (item.item_type === 'essay_prompt') {
+        const { data: d } = await supabase.from('essay_prompts').select('title, course_key, is_private').eq('id', item.item_id).single()
         detail = d
       }
       return { ...item, detail }
@@ -119,10 +122,16 @@ export default function AdminStudyGuides() {
 
   async function searchItems() {
     setPickerLoading(true)
+    const isPrivate = pickerVisibility === 'private'
     let query
-    if (pickerType === 'video') query = supabase.from('videos').select('id, title, course_key, difficulty').ilike('title', `%${pickerSearch}%`).limit(20)
-    else if (pickerType === 'material') query = supabase.from('materials').select('id, title, course_key, difficulty').ilike('title', `%${pickerSearch}%`).limit(20)
-    else query = supabase.from('quiz_packages').select('id, title, course_key, difficulty').ilike('title', `%${pickerSearch}%`).limit(20)
+    if (pickerType === 'video')
+      query = supabase.from('videos').select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    else if (pickerType === 'material')
+      query = supabase.from('materials').select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    else if (pickerType === 'quiz_package')
+      query = supabase.from('quiz_packages').select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    else
+      query = supabase.from('essay_prompts').select('id, title, course_key, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
     const { data, error: err } = await query
     if (err) console.error('[StudyGuides] picker search error:', err)
     setPickerResults(data || [])
@@ -131,7 +140,7 @@ export default function AdminStudyGuides() {
 
   useEffect(() => {
     if (showPicker) searchItems()
-  }, [pickerType, pickerSearch, showPicker])
+  }, [pickerType, pickerVisibility, pickerSearch, showPicker])
 
   async function addItem(item) {
     const alreadyAdded = items.some(i => i.item_id === item.id && i.item_type === pickerType)
@@ -176,8 +185,17 @@ export default function AdminStudyGuides() {
         {/* Item picker */}
         {showPicker && (
           <div style={{ background: 'var(--color-surface)', border: '1px solid rgba(0,0,0,0.3)', borderRadius: 'var(--radius-wobbly-sm)', padding: 16, marginBottom: 20, boxShadow: 'var(--shadow-card)' }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              {['video', 'material', 'quiz_package'].map(type => {
+            {/* Public / Private toggle */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {['public', 'private'].map(v => (
+                <button key={v} type="button" onClick={() => { setPickerVisibility(v); setPickerSearch('') }} style={{ padding: '4px 14px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: pickerVisibility === v ? 'var(--color-secondary)' : 'var(--color-surface)', color: pickerVisibility === v ? '#fff' : 'var(--color-text-2)', transition: 'all var(--transition-base)' }}>
+                  {v === 'public' ? 'Public' : 'Private'}
+                </button>
+              ))}
+            </div>
+            {/* Content type tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              {['video', 'material', 'quiz_package', 'essay_prompt'].map(type => {
                 const Icon = TYPE_ICONS[type]
                 return (
                   <button key={type} type="button" onClick={() => { setPickerType(type); setPickerSearch('') }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: pickerType === type ? 'var(--color-accent)' : 'var(--color-surface-2)', color: pickerType === type ? 'white' : 'var(--color-text-2)', fontFamily: 'inherit' }}>
@@ -198,14 +216,16 @@ export default function AdminStudyGuides() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                 {pickerResults.map(item => {
                   const alreadyAdded = items.some(i => i.item_id === item.id && i.item_type === pickerType)
-                  const tc = TYPE_COLORS[pickerType]
                   return (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: alreadyAdded ? 'var(--color-surface-2)' : 'white' }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{item.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>{item.course_key} {item.difficulty && `· ${item.difficulty}`}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>{item.title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>
+                          {pickerVisibility === 'private' ? 'Private — not tied to a course' : item.course_key}
+                          {item.difficulty && ` · ${item.difficulty}`}
+                        </div>
                       </div>
-                      <button onClick={() => addItem(item)} disabled={alreadyAdded} style={{ padding: '4px 12px', background: alreadyAdded ? 'var(--color-surface-2)' : 'var(--color-accent)', color: alreadyAdded ? 'var(--color-text-3)' : 'white', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 12, cursor: alreadyAdded ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                      <button onClick={() => addItem(item)} disabled={alreadyAdded} style={{ padding: '4px 12px', background: alreadyAdded ? 'var(--color-surface-2)' : 'var(--color-accent)', color: alreadyAdded ? 'var(--color-text-3)' : 'white', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 12, cursor: alreadyAdded ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                         {alreadyAdded ? 'Added' : '+ Add'}
                       </button>
                     </div>
@@ -225,15 +245,21 @@ export default function AdminStudyGuides() {
           <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
             {items.map((item, idx) => {
               const Icon = TYPE_ICONS[item.item_type] || FileText
-              const tc = TYPE_COLORS[item.item_type] || TYPE_COLORS.material
+              const colors = TYPE_COLORS[item.item_type] || TYPE_COLORS.material
+              const isPrivate = item.detail?.is_private
               return (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: idx < items.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: tc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon size={15} style={{ color: tc.color }} />
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={15} style={{ color: colors.color }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500 }}>{item.detail?.title || 'Unknown item'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>{TYPE_LABELS[item.item_type]} · {item.detail?.course_key}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>{item.detail?.title || 'Unknown item'}</span>
+                      {isPrivate && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#ede9fe', color: '#6d28d9', border: '1px solid #c4b5fd' }}>PRIVATE</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>
+                      {TYPE_LABELS[item.item_type]} · {isPrivate ? 'Not tied to a course' : (item.detail?.course_key || '—')}
+                    </div>
                   </div>
                   <button style={btnDanger} onClick={() => handleRemoveItem(item.id)} title="Remove"><Trash2 size={13} /></button>
                 </div>

@@ -23,6 +23,7 @@ function PackagePicker({ courseKey, onSelect }) {
       .from('quiz_packages')
       .select('*, quiz_questions(count)')
       .eq('course_key', courseKey)
+      .eq('is_private', false)
       .order('sort_order')
       .then(({ data }) => {
         setPackages((data || []).map(p => ({ ...p, question_count: p.quiz_questions?.[0]?.count ?? 0 })))

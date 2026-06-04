@@ -31,6 +31,7 @@ export default function MaterialsList({ courseKey }) {
       .from('materials')
       .select('*')
       .eq('course_key', courseKey)
+      .eq('is_private', false)
       .order('sort_order')
       .then(({ data }) => {
         setMaterials(data || [])
