@@ -21,7 +21,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', embed_url: '', duration_label: '', difficulty: 'Beginner', tags: [], is_private: false }
+const emptyForm = { title: '', embed_url: '', duration_label: '', difficulty: 'Beginner', tags: [], is_private: false, week_number: 1 }
 
 const inputStyle = { width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box' }
 const labelStyle = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }
@@ -82,7 +82,7 @@ export default function AdminVideos() {
 
   function startEdit(video) {
     setEditingId(video.id)
-    const f = { title: video.title, embed_url: video.embed_url, duration_label: video.duration_label || '', difficulty: video.difficulty, tags: video.tags || [], is_private: video.is_private ?? false }
+    const f = { title: video.title, embed_url: video.embed_url, duration_label: video.duration_label || '', difficulty: video.difficulty, tags: video.tags || [], is_private: video.is_private ?? false, week_number: video.week_number ?? 1 }
     setForm(f)
     setError(null)
   }
@@ -105,6 +105,7 @@ export default function AdminVideos() {
       difficulty: form.difficulty,
       tags: form.tags || [],
       ...(nextOrder !== undefined ? { sort_order: nextOrder } : {}),
+      ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}),
     }
     let err
     if (editingId) { ;({ error: err } = await supabase.from('videos').update(payload).eq('id', editingId)) }
@@ -192,6 +193,13 @@ export default function AdminVideos() {
           </div>
         </div>
 
+        {viewMode === 'public' && (
+          <div>
+            <label style={labelStyle}>Week</label>
+            <input style={inputStyle} type="number" min={1} name="week_number" value={form.week_number ?? 1} onChange={handleField} />
+          </div>
+        )}
+
         <div>
           <label style={labelStyle}>Tags</label>
           <TagInput value={form.tags || []} onChange={handleTags} existingTags={allTags} placeholder="Add tags (e.g. Grammar, Vocabulary)…" />
@@ -216,6 +224,7 @@ export default function AdminVideos() {
                   <th style={{ padding: '8px 6px', width: 28 }} />
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Difficulty</th>
+                  {viewMode === 'public' && <th style={{ padding: '8px 10px', fontWeight: 600 }}>Week</th>}
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
                   <th style={{ padding: '8px 10px' }} />
                 </tr>
@@ -226,6 +235,7 @@ export default function AdminVideos() {
                     <SortableRow key={v.id} id={v.id}>
                       <td style={{ padding: '8px 10px', fontWeight: 500 }}>{v.title}</td>
                       <td style={{ padding: '8px 10px' }}>{v.difficulty}</td>
+                      {viewMode === 'public' && <td style={{ padding: '8px 10px' }}>{v.week_number ?? 1}</td>}
                       <td style={{ padding: '8px 10px' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {(v.tags || []).map(t => (

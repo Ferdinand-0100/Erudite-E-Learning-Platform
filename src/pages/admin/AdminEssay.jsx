@@ -17,7 +17,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general', is_private: false }
+const emptyForm = { title: '', prompt: '', min_words: 150, max_words: 500, time_limit_minutes: '', essay_type: 'general', is_private: false, week_number: 1 }
 
 // Essay type options — maps to the edge function rubric keys
 const ESSAY_TYPE_OPTIONS = [
@@ -116,7 +116,7 @@ export default function AdminEssay() {
 
   function startEdit(p) {
     setEditingId(p.id)
-    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general', is_private: p.is_private ?? false })
+    setForm({ title: p.title, prompt: p.prompt, min_words: p.min_words, max_words: p.max_words, time_limit_minutes: p.time_limit_minutes ?? '', essay_type: p.essay_type ?? 'general', is_private: p.is_private ?? false, week_number: p.week_number ?? 1 })
     setExistingImageUrl(p.image_url ?? null)
     clearImageSelection()
     setError(null)
@@ -148,7 +148,7 @@ export default function AdminEssay() {
       imageUrl = urlData.publicUrl
     }
 
-    const payload = { course_key: form.is_private ? null : courseKey, is_private: form.is_private ?? false, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl, sort_order: editingId ? undefined : prompts.length }
+    const payload = { course_key: form.is_private ? null : courseKey, is_private: form.is_private ?? false, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl, ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}), sort_order: editingId ? undefined : prompts.length }
     // remove undefined keys
     if (payload.sort_order === undefined) delete payload.sort_order
     let err
@@ -293,6 +293,13 @@ export default function AdminEssay() {
           </div>
         </div>
 
+        {viewMode === 'public' && (
+          <div>
+            <label style={labelStyle}>Week</label>
+            <input style={inputStyle} type="number" min={1} name="week_number" value={form.week_number ?? 1} onChange={handleField} />
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <button type="submit" style={btnPrimary} disabled={submitting || uploadingImage}>
             {uploadingImage ? 'Uploading image…' : submitting ? 'Saving…' : editingId ? 'Update' : 'Add Prompt'}
@@ -315,6 +322,7 @@ export default function AdminEssay() {
                   <th style={{ padding: '8px 6px', width: 28 }} />
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Type</th>
+                  {viewMode === 'public' && <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Week</th>}
                   <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Words</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>Time</th>
                   <th style={{ padding: '8px 10px' }} />
@@ -333,6 +341,7 @@ export default function AdminEssay() {
                           {ESSAY_TYPE_OPTIONS.find(o => o.value === (p.essay_type ?? 'general'))?.short ?? p.essay_type}
                         </span>
                       </td>
+                      {viewMode === 'public' && <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--color-secondary)', whiteSpace: 'nowrap' }}>{p.week_number ?? 1}</td>}
                       <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{p.min_words}–{p.max_words}</td>
                       <td style={{ padding: '8px 10px', color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>
                         {p.time_limit_minutes ? `${p.time_limit_minutes} min` : <span style={{ color: 'var(--color-text-3)' }}>—</span>}

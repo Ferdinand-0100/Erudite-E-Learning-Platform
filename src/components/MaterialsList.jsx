@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { FileText, File, Download, FolderOpen } from 'lucide-react'
+import { FileText, File, Download, FolderOpen, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import FilterBar from './FilterBar'
+import WeekFilter from './WeekFilter'
 import { useAppState } from '../lib/AppStateContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
 
 export function getFileTypeBadgeStyle(ext) {
   const e = (ext || '').toLowerCase()
@@ -17,6 +19,7 @@ export function getFileTypeBadgeStyle(ext) {
 
 export default function MaterialsList({ courseKey }) {
   const { user } = useAuth()
+  const { getCurrentWeek } = useEnrollment()
   const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(true)
   const [hoveredCard, setHoveredCard] = useState(null)
@@ -25,6 +28,9 @@ export default function MaterialsList({ courseKey }) {
   const [search, setSearch, clearSearch] = useAppState(`material-search-${courseKey}`, '')
   const [activeDifficulties, setActiveDifficulties, clearDiffs] = useAppState(`material-diffs-${courseKey}`, [])
   const [activeTags, setActiveTags, clearTags] = useAppState(`material-tags-${courseKey}`, [])
+
+  // Week filter state
+  const [weekFilter, setWeekFilter] = useState('all')
 
   useEffect(() => {
     supabase
@@ -39,9 +45,17 @@ export default function MaterialsList({ courseKey }) {
       })
   }, [courseKey])
 
+  const currentWeek = getCurrentWeek(courseKey)
+
   const availableTags = [...new Set(materials.flatMap(m => m.tags || []))].sort()
 
-  const filtered = materials.filter(m => {
+  // Distinct weeks present in the materials list
+  const allWeeks = [...new Set(materials.map(m => m.week_number ?? 1))].sort((a, b) => a - b)
+
+  // Apply week filter first, then search/difficulty/tag filters
+  const weekFiltered = weekFilter === 'all' ? materials : materials.filter(m => (m.week_number ?? 1) === weekFilter)
+
+  const filtered = weekFiltered.filter(m => {
     if (search && !m.title.toLowerCase().includes(search.toLowerCase())) return false
     if (activeDifficulties.length > 0 && !activeDifficulties.includes(m.difficulty)) return false
     if (activeTags.length > 0 && !activeTags.every(t => (m.tags || []).includes(t))) return false
@@ -49,13 +63,13 @@ export default function MaterialsList({ courseKey }) {
   })
 
   function toggleDifficulty(d) {
-    // Radio behaviour: clicking the active one deselects, clicking another selects only that one
     setActiveDifficulties(prev => prev.includes(d) ? [] : [d])
   }
   function toggleTag(t) {
     setActiveTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
   function clearFilters() { clearSearch(); clearDiffs(); clearTags() }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -78,6 +92,13 @@ export default function MaterialsList({ courseKey }) {
 
   return (
     <div>
+      <WeekFilter
+        weeks={allWeeks}
+        selected={weekFilter}
+        onChange={setWeekFilter}
+        currentWeek={currentWeek}
+      />
+
       <FilterBar
         search={search}
         onSearchChange={v => setSearch(v)}
@@ -96,49 +117,86 @@ export default function MaterialsList({ courseKey }) {
           <button onClick={clearFilters} style={{ marginTop: 8, fontSize: 13, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer' }}>Clear filters</button>
         </div>
       ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {filtered.map(m => {
-        const ext = m.file_url?.split('.').pop()?.toLowerCase() || ''
-        const badgeStyle = getFileTypeBadgeStyle(ext)
-        const isHovered = hoveredCard === m.id
-        return (
-          <a
-            key={m.id}
-            href={m.file_url}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              ...styles.card,
-              ...(isHovered ? styles.cardHover : {}),
-            }}
-            onClick={() => recordEvent(supabase, user.id, courseKey, 'material_downloaded', m.title)}
-            onMouseEnter={() => setHoveredCard(m.id)}
-            onMouseLeave={() => setHoveredCard(null)}
-          >
-            <div style={{ ...styles.iconBadge, background: badgeStyle.background }}>
-              <FileText size={18} style={{ color: badgeStyle.color }} />
-            </div>
-            <div style={styles.info}>
-              <div style={styles.title}>{m.title}</div>
-              <div style={styles.meta}>
-                {ext && <span style={{ ...styles.extBadge, ...badgeStyle }}>{ext.toUpperCase()}</span>}
-                {m.difficulty && (() => {
-                  const dc = { beginner: { background: '#dcfce7', color: '#166534' }, intermediate: { background: '#fef3c7', color: '#92400e' }, advanced: { background: '#fee2e2', color: '#991b1b' } }[m.difficulty?.toLowerCase()] || { background: 'rgba(0,0,0,0.06)', color: 'var(--color-text-2)' }
-                  return <span style={{ ...styles.extBadge, ...dc }}>{m.difficulty}</span>
-                })()}
-                {m.file_size_label && <span style={styles.size}>{m.file_size_label}</span>}
-                {(m.tags || []).map(tag => (
-                  <span key={tag} style={styles.tagBadge}>{tag}</span>
-                ))}
-              </div>
-            </div>
-            <div style={styles.downloadBtn}>
-              <Download size={16} />
-            </div>
-          </a>
-        )
-      })}
-    </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {filtered.map(m => {
+            const ext = m.file_url?.split('.').pop()?.toLowerCase() || ''
+            const badgeStyle = getFileTypeBadgeStyle(ext)
+            const isHovered = hoveredCard === m.id
+            const weekNum = m.week_number ?? 1
+            const isLocked = weekNum > currentWeek
+
+            if (isLocked) {
+              // Locked state — no link, no download
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    ...styles.card,
+                    opacity: 0.55,
+                    cursor: 'default',
+                    position: 'relative',
+                  }}
+                >
+                  {/* Lock badge */}
+                  <div style={styles.lockBadge}>
+                    <Lock size={10} style={{ marginRight: 4 }} />
+                    Week {weekNum}
+                  </div>
+                  <div style={{ ...styles.iconBadge, background: badgeStyle.background }}>
+                    <Lock size={18} style={{ color: 'var(--color-text-3)' }} />
+                  </div>
+                  <div style={styles.info}>
+                    <div style={styles.title}>{m.title}</div>
+                    <div style={styles.meta}>
+                      {ext && <span style={{ ...styles.extBadge, ...badgeStyle }}>{ext.toUpperCase()}</span>}
+                      {m.file_size_label && <span style={styles.size}>{m.file_size_label}</span>}
+                    </div>
+                  </div>
+                  <div style={{ ...styles.downloadBtn, opacity: 0.4 }}>
+                    <Download size={16} />
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <a
+                key={m.id}
+                href={m.file_url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  ...styles.card,
+                  ...(isHovered ? styles.cardHover : {}),
+                }}
+                onClick={() => recordEvent(supabase, user.id, courseKey, 'material_downloaded', m.title)}
+                onMouseEnter={() => setHoveredCard(m.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                <div style={{ ...styles.iconBadge, background: badgeStyle.background }}>
+                  <FileText size={18} style={{ color: badgeStyle.color }} />
+                </div>
+                <div style={styles.info}>
+                  <div style={styles.title}>{m.title}</div>
+                  <div style={styles.meta}>
+                    {ext && <span style={{ ...styles.extBadge, ...badgeStyle }}>{ext.toUpperCase()}</span>}
+                    {m.difficulty && (() => {
+                      const dc = { beginner: { background: '#dcfce7', color: '#166534' }, intermediate: { background: '#fef3c7', color: '#92400e' }, advanced: { background: '#fee2e2', color: '#991b1b' } }[m.difficulty?.toLowerCase()] || { background: 'rgba(0,0,0,0.06)', color: 'var(--color-text-2)' }
+                      return <span style={{ ...styles.extBadge, ...dc }}>{m.difficulty}</span>
+                    })()}
+                    {m.file_size_label && <span style={styles.size}>{m.file_size_label}</span>}
+                    {(m.tags || []).map(tag => (
+                      <span key={tag} style={styles.tagBadge}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={styles.downloadBtn}>
+                  <Download size={16} />
+                </div>
+              </a>
+            )
+          })}
+        </div>
       )}
     </div>
   )
@@ -192,6 +250,20 @@ const styles = {
     border: '1.5px solid var(--color-border)',
     borderRadius: 'var(--radius-wobbly-sm)',
     background: 'var(--color-muted)',
+    color: 'var(--color-text-2)',
+  },
+  lockBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 10,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    background: 'var(--color-muted)',
+    border: '1.5px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    fontSize: 11,
+    fontWeight: 600,
     color: 'var(--color-text-2)',
   },
   downloadBtn: {

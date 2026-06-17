@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp, Clock } from 'lucide-react'
+import { CheckCircle, TrendingUp, BookOpen, MessageSquare, Lightbulb, ChevronDown, ChevronUp, Clock, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import { useAppState } from '../lib/AppStateContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
+import WeekFilter from './WeekFilter'
 
 // Essay type display labels (mirrors admin options)
 const ESSAY_TYPE_LABELS = {
@@ -42,6 +44,7 @@ function formatTime(seconds) {
 
 export default function EssayChecker({ courseKey }) {
   const { user } = useAuth()
+  const { getCurrentWeek } = useEnrollment()
   const [prompts, setPrompts] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedPrompt, setSelectedPrompt] = useState(null)
@@ -50,6 +53,9 @@ export default function EssayChecker({ courseKey }) {
   const [error, setError] = useState(null)
   const [showCorrections, setShowCorrections] = useState(false)
   const [pastSubmissions, setPastSubmissions] = useState([])
+
+  // Week filter state
+  const [weekFilter, setWeekFilter] = useState('all')
 
   // Daily usage tracking: { [promptId]: count }
   const [usageToday, setUsageToday] = useState({})
@@ -257,9 +263,18 @@ export default function EssayChecker({ courseKey }) {
     setChecking(false)
   }
 
+  const currentWeek = getCurrentWeek(courseKey)
+
+  // Distinct weeks present in prompts
+  const allWeeks = [...new Set(prompts.map(p => p.week_number ?? 1))].sort((a, b) => a - b)
+
+  // Week-filtered prompts
+  const visiblePrompts = weekFilter === 'all' ? prompts : prompts.filter(p => (p.week_number ?? 1) === weekFilter)
+
   const submissionsToday = selectedPrompt ? (usageToday[selectedPrompt.id] ?? 0) : 0
   const limitReached = submissionsToday >= dailyLimit
   const hasTimeLimit = !!selectedPrompt?.time_limit_minutes
+  const isSelectedLocked = selectedPrompt ? (selectedPrompt.week_number ?? 1) > currentWeek : false
   const timerColor = secondsLeft !== null && secondsLeft <= 60
     ? 'var(--color-danger)'
     : secondsLeft !== null && secondsLeft <= 180
@@ -289,26 +304,46 @@ export default function EssayChecker({ courseKey }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760 }}>
 
+      {/* Week filter */}
+      <WeekFilter
+        weeks={allWeeks}
+        selected={weekFilter}
+        onChange={setWeekFilter}
+        currentWeek={currentWeek}
+      />
+
       {/* Prompt selector */}
-      {prompts.length > 1 && (
+      {visiblePrompts.length > 1 && (
         <div style={styles.card}>
           <div style={styles.sectionLabel}>Select a prompt</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {prompts.map(p => (
-              <div
-                key={p.id}
-                onClick={() => handlePromptSelect(p)}
-                style={{
-                  ...styles.promptOption,
-                  ...(selectedPrompt?.id === p.id ? styles.promptOptionActive : {}),
-                }}
-              >
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{p.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>
-                  {p.min_words}–{p.max_words} words
+            {visiblePrompts.map(p => {
+              const weekNum = p.week_number ?? 1
+              const isLocked = weekNum > currentWeek
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => !isLocked && handlePromptSelect(p)}
+                  style={{
+                    ...styles.promptOption,
+                    ...(selectedPrompt?.id === p.id ? styles.promptOptionActive : {}),
+                    ...(isLocked ? { opacity: 0.55, cursor: 'default' } : {}),
+                    position: 'relative',
+                  }}
+                >
+                  {isLocked && (
+                    <div style={{ position: 'absolute', top: 8, right: 10, display: 'inline-flex', alignItems: 'center', padding: '2px 8px', background: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-2)' }}>
+                      <Lock size={10} style={{ marginRight: 4 }} />
+                      Week {weekNum}
+                    </div>
+                  )}
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{p.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>
+                    {p.min_words}–{p.max_words} words
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -433,15 +468,21 @@ export default function EssayChecker({ courseKey }) {
           placeholder="Write your essay here..."
           style={{
             ...styles.textarea,
-            ...(timeExpired ? { opacity: 0.6, pointerEvents: 'none' } : {}),
+            ...(timeExpired || isSelectedLocked ? { opacity: 0.6, pointerEvents: 'none' } : {}),
           }}
           rows={12}
-          disabled={timeExpired}
+          disabled={timeExpired || isSelectedLocked}
         />
-        {error && (
+        {isSelectedLocked && (
+          <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--color-muted)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+            <Lock size={14} style={{ flexShrink: 0 }} />
+            This prompt unlocks in Week {selectedPrompt.week_number ?? 1}.
+          </div>
+        )}
+        {error && !isSelectedLocked && (
           <div style={styles.errorBox}>{error}</div>
         )}
-        {limitReached ? (
+        {!isSelectedLocked && (limitReached ? (
           <div style={styles.limitBox}>
             You've used all {dailyLimit} submission{dailyLimit !== 1 ? 's' : ''} for this prompt today. Come back tomorrow!
           </div>
@@ -473,8 +514,8 @@ export default function EssayChecker({ courseKey }) {
               </span>
             ) : `Check my essay (${dailyLimit - submissionsToday} left today)`}
           </button>
-        )}
-        {!limitReached && !timeExpired && selectedPrompt && wordCount < selectedPrompt.min_words && essay.trim() && (
+        ))}
+        {!isSelectedLocked && !limitReached && !timeExpired && selectedPrompt && wordCount < selectedPrompt.min_words && essay.trim() && (
           <p style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 6 }}>
             {selectedPrompt.min_words - wordCount} more words needed
           </p>

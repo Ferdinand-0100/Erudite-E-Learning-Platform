@@ -99,6 +99,9 @@ export default function AdminStudents() {
   const [managingKeys, setManagingKeys] = useState([])
   const [managingLoading, setManagingLoading] = useState(false)
   const [managingError, setManagingError] = useState(null)
+  // Per-enrollment week settings: { [courseKey]: { course_start_date, week_override } }
+  const [managingWeekSettings, setManagingWeekSettings] = useState({})
+  const [weekSettingsSaving, setWeekSettingsSaving] = useState({})
 
   // Reset password modal state
   const [resetStudent, setResetStudent] = useState(null)
@@ -211,11 +214,27 @@ export default function AdminStudents() {
     setResetLoading(false)
   }
 
-  async function handleOpenManage(student) {    setManagingStudent(student)
+  async function handleOpenManage(student) {
+    setManagingStudent(student)
     setManagingError(null)
     setManagingLoading(true)
-    const keys = await fetchEnrollments(supabase, student.id)
-    setManagingKeys(keys)
+    setManagingWeekSettings({})
+    // Fetch full enrollment rows including week fields
+    const { data } = await supabase
+      .from('enrollments')
+      .select('course_key, course_start_date, week_override')
+      .eq('student_id', student.id)
+    const rows = data || []
+    setManagingKeys(rows.map(r => r.course_key))
+    // Build week settings map
+    const settings = {}
+    for (const r of rows) {
+      settings[r.course_key] = {
+        course_start_date: r.course_start_date ?? new Date().toISOString().slice(0, 10),
+        week_override: r.week_override ?? '',
+      }
+    }
+    setManagingWeekSettings(settings)
     setManagingLoading(false)
   }
 
@@ -226,14 +245,34 @@ export default function AdminStudents() {
     try {
       for (const key of added) {
         await assignEnrollment(supabase, managingStudent.id, key)
+        // Initialise week settings for new enrollment with today's date
+        setManagingWeekSettings(prev => ({
+          ...prev,
+          [key]: { course_start_date: new Date().toISOString().slice(0, 10), week_override: '' },
+        }))
       }
       for (const key of removed) {
         await removeEnrollment(supabase, managingStudent.id, key)
+        setManagingWeekSettings(prev => { const n = { ...prev }; delete n[key]; return n })
       }
       setManagingKeys(newKeys)
     } catch (err) {
       setManagingError(err.message)
     }
+  }
+
+  async function handleSaveWeekSettings(courseKey) {
+    const settings = managingWeekSettings[courseKey]
+    if (!settings) return
+    const weekOverride = settings.week_override === '' ? null : Math.max(1, parseInt(settings.week_override) || 1)
+    setWeekSettingsSaving(prev => ({ ...prev, [courseKey]: true }))
+    const { error: err } = await supabase
+      .from('enrollments')
+      .update({ course_start_date: settings.course_start_date, week_override: weekOverride })
+      .eq('student_id', managingStudent.id)
+      .eq('course_key', courseKey)
+    setWeekSettingsSaving(prev => ({ ...prev, [courseKey]: false }))
+    if (err) setManagingError(err.message)
   }
 
   const filtered = filterStudents(
@@ -456,7 +495,58 @@ export default function AdminStudents() {
               {managingLoading ? (
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Loading enrollments…</p>
               ) : (
-                <EnrollmentPicker selectedKeys={managingKeys} onChange={handleManagingChange} dark />
+                <>
+                  <EnrollmentPicker selectedKeys={managingKeys} onChange={handleManagingChange} dark />
+
+                  {/* Week settings per enrollment */}
+                  {managingKeys.length > 0 && (
+                    <div style={{ marginTop: 20 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+                        Week settings per enrollment
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {managingKeys.map(courseKey => {
+                          const s = managingWeekSettings[courseKey] || { course_start_date: '', week_override: '' }
+                          const isSaving = weekSettingsSaving[courseKey]
+                          return (
+                            <div key={courseKey} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '12px 14px' }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: 10 }}>{courseKey}</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'flex-end' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Start date</label>
+                                  <input
+                                    type="date"
+                                    value={s.course_start_date}
+                                    onChange={e => setManagingWeekSettings(prev => ({ ...prev, [courseKey]: { ...s, course_start_date: e.target.value } }))}
+                                    style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, fontSize: 13, background: 'rgba(255,255,255,0.07)', color: '#fff', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Week override <span style={{ color: 'rgba(255,255,255,0.25)' }}>(blank = auto)</span></label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={s.week_override}
+                                    placeholder="Auto"
+                                    onChange={e => setManagingWeekSettings(prev => ({ ...prev, [courseKey]: { ...s, week_override: e.target.value } }))}
+                                    style={{ width: '100%', padding: '7px 10px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, fontSize: 13, background: 'rgba(255,255,255,0.07)', color: '#fff', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => handleSaveWeekSettings(courseKey)}
+                                  disabled={isSaving}
+                                  style={{ padding: '7px 14px', background: isSaving ? 'rgba(255,255,255,0.1)' : 'var(--color-accent)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: isSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: isSaving ? 0.6 : 1 }}
+                                >
+                                  {isSaving ? '…' : 'Save'}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

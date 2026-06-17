@@ -111,6 +111,9 @@ p, li { line-height: 1.6; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border-light); border-radius: 2px; }
 
+/* WeekFilter horizontal scroll — hide scrollbar visually */
+.week-filter-row::-webkit-scrollbar { display: none; }
+
 /* ── Skeleton shimmer animation ────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }

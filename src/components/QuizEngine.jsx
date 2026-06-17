@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Trophy, ThumbsUp, BookOpen, HelpCircle, ArrowLeft } from 'lucide-react'
+import { CheckCircle, XCircle, Trophy, ThumbsUp, BookOpen, HelpCircle, ArrowLeft, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import FillBlankEngine from './FillBlankEngine'
 import FilterBar from './FilterBar'
+import WeekFilter from './WeekFilter'
 import { useAppState } from '../lib/AppStateContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
 
 // ── Package picker ────────────────────────────────────────────────────────────
 
 function PackagePicker({ courseKey, onSelect }) {
+  const { getCurrentWeek } = useEnrollment()
   const [packages, setPackages] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -17,6 +20,9 @@ function PackagePicker({ courseKey, onSelect }) {
   const [search, setSearch, clearSearch] = useAppState(`quiz-search-${courseKey}`, '')
   const [activeDifficulties, setActiveDifficulties, clearDiffs] = useAppState(`quiz-diffs-${courseKey}`, [])
   const [activeTags, setActiveTags, clearTags] = useAppState(`quiz-tags-${courseKey}`, [])
+
+  // Week filter state
+  const [weekFilter, setWeekFilter] = useState('all')
 
   useEffect(() => {
     supabase
@@ -31,9 +37,17 @@ function PackagePicker({ courseKey, onSelect }) {
       })
   }, [courseKey])
 
+  const currentWeek = getCurrentWeek(courseKey)
+
   const availableTags = [...new Set(packages.flatMap(p => p.tags || []))].sort()
 
-  const filtered = packages.filter(p => {
+  // Distinct weeks present in packages
+  const allWeeks = [...new Set(packages.map(p => p.week_number ?? 1))].sort((a, b) => a - b)
+
+  // Apply week filter first, then search/difficulty/tag filters
+  const weekFiltered = weekFilter === 'all' ? packages : packages.filter(p => (p.week_number ?? 1) === weekFilter)
+
+  const filtered = weekFiltered.filter(p => {
     if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false
     if (activeDifficulties.length > 0 && !activeDifficulties.includes(p.difficulty)) return false
     if (activeTags.length > 0 && !activeTags.every(t => (p.tags || []).includes(t))) return false
@@ -66,6 +80,12 @@ function PackagePicker({ courseKey, onSelect }) {
 
   return (
     <div>
+      <WeekFilter
+        weeks={allWeeks}
+        selected={weekFilter}
+        onChange={setWeekFilter}
+        currentWeek={currentWeek}
+      />
       <FilterBar
         search={search}
         onSearchChange={v => setSearch(v)}
@@ -84,22 +104,33 @@ function PackagePicker({ courseKey, onSelect }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
         {filtered.map(pkg => {
           const dc = difficultyColors[pkg.difficulty] || difficultyColors.Beginner
+          const weekNum = pkg.week_number ?? 1
+          const isLocked = weekNum > currentWeek
           return (
             <div
               key={pkg.id}
-              onClick={() => onSelect(pkg)}
+              onClick={() => !isLocked && onSelect(pkg)}
               style={{
                 background: 'var(--color-surface)',
                 border: '2px solid var(--color-border)',
                 borderRadius: 'var(--radius-wobbly-md)',
                 padding: 18,
-                cursor: 'pointer',
+                cursor: isLocked ? 'default' : 'pointer',
                 transition: 'transform var(--transition-slow), box-shadow var(--transition-slow)',
                 boxShadow: 'var(--shadow-card)',
+                opacity: isLocked ? 0.55 : 1,
+                position: 'relative',
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translate(-2px, -2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-elevated)' }}
+              onMouseEnter={e => { if (!isLocked) { e.currentTarget.style.transform = 'translate(-2px, -2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-elevated)' } }}
               onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'var(--shadow-card)' }}
             >
+              {/* Lock badge */}
+              {isLocked && (
+                <div style={{ position: 'absolute', top: 10, right: 10, display: 'inline-flex', alignItems: 'center', padding: '2px 8px', background: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-2)' }}>
+                  <Lock size={10} style={{ marginRight: 4 }} />
+                  Week {weekNum}
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, flex: 1, marginRight: 8 }}>{pkg.title}</div>
                 <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: dc.bg, color: dc.color, flexShrink: 0 }}>{pkg.difficulty}</span>
@@ -110,7 +141,12 @@ function PackagePicker({ courseKey, onSelect }) {
                   {pkg.tags.map(t => <span key={t} style={{ fontSize: 11, padding: '2px 7px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', background: 'var(--color-muted)', color: 'var(--color-text-2)' }}>{t}</span>)}
                 </div>
               )}
-              <div style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{pkg.question_count} question{pkg.question_count !== 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: isLocked ? 0 : 8 }}>{pkg.question_count} question{pkg.question_count !== 1 ? 's' : ''}</div>
+              {isLocked && (
+                <div style={{ marginTop: 10, padding: '6px 10px', background: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 12, color: 'var(--color-text-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Lock size={11} /> Unlocks in Week {weekNum}
+                </div>
+              )}
             </div>
           )
         })}

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Play, Video, MonitorPlay } from 'lucide-react'
+import { Play, Video, MonitorPlay, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { recordEvent } from '../lib/progressService'
 import { normaliseVideoUrl } from '../lib/videoUrl'
 import FilterBar from './FilterBar'
+import WeekFilter from './WeekFilter'
 import { useAppState } from '../lib/AppStateContext'
+import { useEnrollment } from '../lib/EnrollmentContext'
 
 export function getDifficultyBadgeStyle(difficulty) {
   const d = (difficulty || '').toLowerCase()
@@ -17,6 +19,7 @@ export function getDifficultyBadgeStyle(difficulty) {
 
 export default function VideoList({ courseKey }) {
   const { user } = useAuth()
+  const { getCurrentWeek } = useEnrollment()
   const [videos, setVideos] = useState([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState(null)
@@ -26,6 +29,9 @@ export default function VideoList({ courseKey }) {
   const [search, setSearch, clearSearch] = useAppState(`video-search-${courseKey}`, '')
   const [activeDifficulties, setActiveDifficulties, clearDiffs] = useAppState(`video-diffs-${courseKey}`, [])
   const [activeTags, setActiveTags, clearTags] = useAppState(`video-tags-${courseKey}`, [])
+
+  // Week filter state
+  const [weekFilter, setWeekFilter] = useState('all')
 
   useEffect(() => {
     supabase
@@ -40,11 +46,18 @@ export default function VideoList({ courseKey }) {
       })
   }, [courseKey])
 
+  const currentWeek = getCurrentWeek(courseKey)
+
   // Derive available tags from loaded videos
   const availableTags = [...new Set(videos.flatMap(v => v.tags || []))].sort()
 
-  // Apply filters
-  const filtered = videos.filter(v => {
+  // Distinct weeks present in the video list
+  const allWeeks = [...new Set(videos.map(v => v.week_number ?? 1))].sort((a, b) => a - b)
+
+  // Apply week filter first, then search/difficulty/tag filters
+  const weekFiltered = weekFilter === 'all' ? videos : videos.filter(v => (v.week_number ?? 1) === weekFilter)
+
+  const filtered = weekFiltered.filter(v => {
     if (search && !v.title.toLowerCase().includes(search.toLowerCase())) return false
     if (activeDifficulties.length > 0 && !activeDifficulties.includes(v.difficulty)) return false
     if (activeTags.length > 0 && !activeTags.every(t => (v.tags || []).includes(t))) return false
@@ -52,7 +65,6 @@ export default function VideoList({ courseKey }) {
   })
 
   function toggleDifficulty(d) {
-    // Radio behaviour: clicking the active one deselects, clicking another selects only that one
     setActiveDifficulties(prev => prev.includes(d) ? [] : [d])
   }
   function toggleTag(t) {
@@ -84,6 +96,13 @@ export default function VideoList({ courseKey }) {
 
   return (
     <div>
+      <WeekFilter
+        weeks={allWeeks}
+        selected={weekFilter}
+        onChange={setWeekFilter}
+        currentWeek={currentWeek}
+      />
+
       <FilterBar
         search={search}
         onSearchChange={v => setSearch(v)}
@@ -125,23 +144,39 @@ export default function VideoList({ courseKey }) {
             const isActiveCard = active?.id === v.id
             const isHovered = hoveredCard === v.id
             const badgeStyle = getDifficultyBadgeStyle(v.difficulty)
+            const weekNum = v.week_number ?? 1
+            const isLocked = weekNum > currentWeek
             return (
               <div
                 key={v.id}
                 style={{
                   ...styles.card,
                   ...(isActiveCard ? styles.cardActive : {}),
-                  ...(isHovered && !isActiveCard ? styles.cardHover : {}),
+                  ...(isHovered && !isActiveCard && !isLocked ? styles.cardHover : {}),
+                  ...(isLocked ? { opacity: 0.55, cursor: 'default' } : {}),
+                  position: 'relative',
                 }}
                 onClick={() => {
+                  if (isLocked) return
                   recordEvent(supabase, user.id, courseKey, 'video_watched', v.title)
                   setActive(v)
                 }}
-                onMouseEnter={() => setHoveredCard(v.id)}
+                onMouseEnter={() => !isLocked && setHoveredCard(v.id)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
+                {/* Lock overlay badge */}
+                {isLocked && (
+                  <div style={styles.lockBadge}>
+                    <Lock size={10} style={{ marginRight: 4 }} />
+                    Week {weekNum}
+                  </div>
+                )}
+
                 <div style={{ ...styles.thumb, ...(isActiveCard ? styles.thumbActive : {}) }}>
-                  <Play size={16} style={{ color: isActiveCard ? 'var(--color-accent)' : 'var(--color-text-3)' }} />
+                  {isLocked
+                    ? <Lock size={16} style={{ color: 'var(--color-text-3)' }} />
+                    : <Play size={16} style={{ color: isActiveCard ? 'var(--color-accent)' : 'var(--color-text-3)' }} />
+                  }
                 </div>
                 <div style={styles.info}>
                   <div style={styles.title}>{v.title}</div>
@@ -237,6 +272,20 @@ const styles = {
     border: '1.5px solid var(--color-border)',
     borderRadius: 'var(--radius-wobbly-sm)',
     background: 'var(--color-muted)',
+    color: 'var(--color-text-2)',
+  },
+  lockBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 10,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    background: 'var(--color-muted)',
+    border: '1.5px solid var(--color-border)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    fontSize: 11,
+    fontWeight: 600,
     color: 'var(--color-text-2)',
   },
   emptyState: {

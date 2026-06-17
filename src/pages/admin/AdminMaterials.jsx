@@ -18,7 +18,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyForm = { title: '', file: null, tags: [], difficulty: 'Beginner', is_private: false }
+const emptyForm = { title: '', file: null, tags: [], difficulty: 'Beginner', is_private: false, week_number: 1 }
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -133,7 +133,7 @@ export default function AdminMaterials() {
 
   function startEdit(material) {
     setEditingId(material.id)
-    const f = { title: material.title, file: null, tags: material.tags || [], difficulty: material.difficulty || 'Beginner', is_private: material.is_private ?? false }
+    const f = { title: material.title, file: null, tags: material.tags || [], difficulty: material.difficulty || 'Beginner', is_private: material.is_private ?? false, week_number: material.week_number ?? 1 }
     setForm(f)
     setError(null)
   }
@@ -154,7 +154,7 @@ export default function AdminMaterials() {
       setSubmitting(true)
       const { error: err } = await supabase
         .from('materials')
-        .update({ title: form.title, tags: form.tags || [], difficulty: form.difficulty, is_private: form.is_private, course_key: form.is_private ? null : courseKey })
+        .update({ title: form.title, tags: form.tags || [], difficulty: form.difficulty, is_private: form.is_private, course_key: form.is_private ? null : courseKey, ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}) })
         .eq('id', editingId)
       if (err) {
         setError(err.message)
@@ -204,6 +204,7 @@ export default function AdminMaterials() {
       sort_order: materials.length,
       tags: form.tags || [],
       difficulty: form.difficulty,
+      ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}),
     })
 
     if (insertErr) {
@@ -313,6 +314,13 @@ export default function AdminMaterials() {
           <TagInput value={form.tags || []} onChange={tags => setForm(f => ({ ...f, tags }))} existingTags={allTags} placeholder="Add tags (e.g. Grammar, Reading)…" />
         </div>
 
+        {viewMode === 'public' && (
+          <div>
+            <label style={labelStyle}>Week</label>
+            <input style={inputStyle} type="number" min={1} name="week_number" value={form.week_number ?? 1} onChange={handleField} />
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <button type="submit" style={btnPrimary} disabled={submitting || uploading}>
             {uploading ? 'Uploading…' : submitting ? 'Saving…' : editingId ? 'Update Material' : 'Add Material'}
@@ -334,6 +342,7 @@ export default function AdminMaterials() {
                 <tr style={{ borderBottom: '1px solid var(--color-border-strong)', textAlign: 'left' }}>
                   <th style={{ padding: '8px 6px', width: 28 }} />
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
+                  {viewMode === 'public' && <th style={{ padding: '8px 10px', fontWeight: 600 }}>Week</th>}
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
                   <th style={{ padding: '8px 10px' }} />
                 </tr>
@@ -343,6 +352,7 @@ export default function AdminMaterials() {
                   {items.map(m => (
                     <SortableRow key={m.id} id={m.id}>
                       <td style={{ padding: '8px 10px' }}>{m.title}</td>
+                      {viewMode === 'public' && <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--color-secondary)' }}>{m.week_number ?? 1}</td>}
                       <td style={{ padding: '8px 10px' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {(m.tags || []).map(t => (

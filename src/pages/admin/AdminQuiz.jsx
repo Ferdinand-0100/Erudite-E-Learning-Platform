@@ -21,7 +21,7 @@ const firstKey = (() => {
   return buildCourseKey(c, sub, lvl)
 })()
 
-const emptyPackageForm = { title: '', description: '', difficulty: 'Beginner', tags: [], is_private: false }
+const emptyPackageForm = { title: '', description: '', difficulty: 'Beginner', tags: [], is_private: false, week_number: 1 }
 const emptyMCQ = { question: '', options: ['', '', '', ''], correct_answer_index: 0, explanation: '' }
 const emptyFITB = { paragraph: '', answers: [] }
 
@@ -123,7 +123,7 @@ export default function AdminQuiz() {
     if (!pkgForm.title.trim()) { setError('Title is required'); return }
     setPkgSubmitting(true)
     setError(null)
-    const payload = { course_key: pkgForm.is_private ? null : courseKey, is_private: pkgForm.is_private ?? false, title: pkgForm.title.trim(), description: pkgForm.description.trim() || null, difficulty: pkgForm.difficulty, tags: pkgForm.tags, ...(editingPkgId ? {} : { sort_order: packages.length }) }
+    const payload = { course_key: pkgForm.is_private ? null : courseKey, is_private: pkgForm.is_private ?? false, title: pkgForm.title.trim(), description: pkgForm.description.trim() || null, difficulty: pkgForm.difficulty, tags: pkgForm.tags, ...(!pkgForm.is_private ? { week_number: Math.max(1, parseInt(pkgForm.week_number) || 1) } : {}), ...(editingPkgId ? {} : { sort_order: packages.length }) }
     let err
     if (editingPkgId) { ;({ error: err } = await supabase.from('quiz_packages').update(payload).eq('id', editingPkgId)) }
     else { ;({ error: err } = await supabase.from('quiz_packages').insert(payload)) }
@@ -134,7 +134,7 @@ export default function AdminQuiz() {
 
   function startEditPkg(pkg) {
     setEditingPkgId(pkg.id)
-    setPkgForm({ title: pkg.title, description: pkg.description || '', difficulty: pkg.difficulty, tags: pkg.tags || [], is_private: pkg.is_private ?? false })
+    setPkgForm({ title: pkg.title, description: pkg.description || '', difficulty: pkg.difficulty, tags: pkg.tags || [], is_private: pkg.is_private ?? false, week_number: pkg.week_number ?? 1 })
     setError(null)
   }
 
@@ -399,6 +399,13 @@ export default function AdminQuiz() {
           </div>
         </div>
 
+        {viewMode === 'public' && (
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }}>Week</label>
+            <input style={{ width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box' }} type="number" min={1} value={pkgForm.week_number ?? 1} onChange={e => { const v = e.target.value; setPkgForm(f => ({ ...f, week_number: v })) }} />
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <button type="submit" style={btnPrimary} disabled={pkgSubmitting}>{editingPkgId ? 'Update Package' : 'Create Package'}</button>
           {editingPkgId && <button type="button" style={btnSecondary} onClick={() => { setEditingPkgId(null); clearPkgForm() }}>Cancel</button>}
@@ -427,6 +434,7 @@ export default function AdminQuiz() {
                           {pkg.description && <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>{pkg.description}</div>}
                         </div>
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: dc.bg, color: dc.color, flexShrink: 0 }}>{pkg.difficulty}</span>
+                        {!pkg.is_private && <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: 'var(--color-muted)', color: 'var(--color-secondary)', border: '1.5px solid var(--color-border)', flexShrink: 0 }}>Wk {pkg.week_number ?? 1}</span>}
                       </div>
                       {(pkg.tags || []).length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
