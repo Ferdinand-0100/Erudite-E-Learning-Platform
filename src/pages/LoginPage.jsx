@@ -716,8 +716,68 @@ export default function LoginPage() {
               </a>
             </div>
           </div>
-          <div className="lp-carousel" style={{ flex: 1, minWidth: 0, height: 420, animation: 'fadeUp 0.6s 0.08s ease both' }}>
-            <CoverflowCarousel slides={SLIDES} current={current} onGo={goTo} />
+          <div
+            className="lp-carousel"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              height: 420,
+              animation: 'fadeUp 0.6s 0.08s ease both',
+              position: 'relative',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                border: '3px solid var(--color-border)',
+                borderRadius: 'var(--radius-wobbly)',
+                boxShadow: 'var(--shadow-elevated)',
+                background: 'var(--color-surface)',
+              }}
+            >
+              <iframe
+                title="Erudite English Location"
+                src="https://www.google.com/maps?q=Jl.+Suasa+No.3K,+Sei+Rengas+II,+Kec.+Medan+Area,+Kota+Medan,+Sumatera+Utara+20211,+Indonesia&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+              />
+            </div>
+
+            {/* Location Card */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 16,
+                bottom: 16,
+                background: 'var(--color-surface-2)',
+                border: '2px solid var(--color-border)',
+                borderRadius: 'var(--radius-wobbly-sm)',
+                padding: '12px 14px',
+                boxShadow: 'var(--shadow-card)',
+                maxWidth: 280,
+                zIndex: 10,
+              }}
+            >
+
+              <a
+                href="https://maps.app.goo.gl/byKLErUfEH6ok9PK7"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-block',
+                  marginTop: 0,
+                  color: 'var(--color-accent)',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                Open in Google Maps →
+              </a>
+            </div>
           </div>
         </div>
       </main>
