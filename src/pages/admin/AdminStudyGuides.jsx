@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, Video, FileText, HelpCircle, Search, PenLine, Headphones, BookMarked, Key } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Video, FileText, HelpCircle, Search, PenLine, Headphones, BookMarked, Key, GripVertical } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import {
+  DndContext, closestCenter, DragOverlay,
+  PointerSensor, KeyboardSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const inputStyle = { width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box', fontFamily: 'inherit' }
 const labelStyle = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-2)' }
@@ -145,6 +154,27 @@ export default function AdminStudyGuides() {
     fetchItems(selectedGuide.id)
   }
 
+  // ── Drag-to-reorder ───────────────────────────────────────
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  async function handleDragEnd(event) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex(i => i.id === active.id)
+    const newIndex = items.findIndex(i => i.id === over.id)
+    const reordered = arrayMove(items, oldIndex, newIndex).map((item, idx) => ({ ...item, sort_order: idx }))
+    setItems(reordered)
+    await Promise.all(
+      reordered.map(item =>
+        supabase.from('study_guide_items').update({ sort_order: item.sort_order }).eq('id', item.id)
+      )
+    )
+  }
+
   // ── Picker ────────────────────────────────────────────────
 
   async function searchItems() {
@@ -271,30 +301,21 @@ export default function AdminStudyGuides() {
         ) : items.length === 0 ? (
           <p style={{ color: 'var(--color-text-3)', fontSize: 14 }}>No items yet. Click "Add items" to get started.</p>
         ) : (
-          <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
-            {items.map((item, idx) => {
-              const Icon = TYPE_ICONS[item.item_type] || FileText
-              const colors = TYPE_COLORS[item.item_type] || TYPE_COLORS.material
-              const isPrivate = item.detail?.is_private
-              return (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: idx < items.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon size={15} style={{ color: colors.color }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 14, fontWeight: 500 }}>{item.detail?.title || 'Unknown item'}</span>
-                      {isPrivate && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#ede9fe', color: '#6d28d9', border: '1px solid #c4b5fd' }}>PRIVATE</span>}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>
-                      {TYPE_LABELS[item.item_type]} · {isPrivate ? 'Not tied to a course' : (item.detail?.course_key || '—')}
-                    </div>
-                  </div>
-                  <button style={btnDanger} onClick={() => handleRemoveItem(item.id)} title="Remove"><Trash2 size={13} /></button>
-                </div>
-              )
-            })}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+              <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
+                {items.map((item, idx) => (
+                  <SortableGuideItem
+                    key={item.id}
+                    item={item}
+                    idx={idx}
+                    total={items.length}
+                    onRemove={handleRemoveItem}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     )
@@ -366,6 +387,90 @@ export default function AdminStudyGuides() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Sortable item row ─────────────────────────────────────────────────────────
+
+function SortableGuideItem({ item, idx, total, onRemove }) {
+  const {
+    attributes, listeners, setNodeRef,
+    transform, transition, isDragging,
+  } = useSortable({ id: item.id })
+
+  const Icon = TYPE_ICONS[item.item_type] || FileText
+  const colors = TYPE_COLORS[item.item_type] || TYPE_COLORS.material
+  const isPrivate = item.detail?.is_private
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '12px 16px',
+    borderBottom: idx < total - 1 ? '1px solid var(--color-border)' : 'none',
+    background: isDragging ? 'var(--color-surface-2)' : 'transparent',
+  }
+
+  const btnDangerInline = {
+    padding: '6px 10px',
+    background: 'var(--color-surface)',
+    color: 'var(--color-danger)',
+    border: '2px solid var(--color-danger)',
+    borderRadius: 'var(--radius-wobbly-sm)',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    display: 'flex',
+    alignItems: 'center',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 24,
+          height: 24,
+          cursor: 'grab',
+          color: 'var(--color-text-3)',
+          flexShrink: 0,
+          touchAction: 'none',
+        }}
+        title="Drag to reorder"
+      >
+        <GripVertical size={14} />
+      </div>
+
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={15} style={{ color: colors.color }} />
+      </div>
+
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>{item.detail?.title || 'Unknown item'}</span>
+          {isPrivate && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: '#ede9fe', color: '#6d28d9', border: '1px solid #c4b5fd' }}>
+              PRIVATE
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>
+          {TYPE_LABELS[item.item_type]} · {isPrivate ? 'Not tied to a course' : (item.detail?.course_key || '—')}
+        </div>
+      </div>
+
+      <button style={btnDangerInline} onClick={() => onRemove(item.id)} title="Remove">
+        <Trash2 size={13} />
+      </button>
     </div>
   )
 }

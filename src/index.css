@@ -139,3 +139,9 @@ p, li { line-height: 1.6; }
     transition-duration: 100ms !important;
   }
 }
+
+/* Landing page ticker */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
