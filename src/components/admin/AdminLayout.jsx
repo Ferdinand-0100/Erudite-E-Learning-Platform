@@ -14,13 +14,13 @@ const ADMIN_NAV_ITEMS = [
   { label: 'Books',         to: '/admin/books',        icon: BookMarked },
   { label: 'Answer Keys',   to: '/admin/answerkeys',   icon: Key },
   { label: 'Study Guides',  to: '/admin/studyguides',  icon: BookOpen },
-  { label: 'Students',      to: '/admin/students',     icon: Users },
+  { label: 'Accounts',      to: '/admin/students',     icon: Users },
 ]
 
-// Teachers only see Study Guides and Students (read-only)
+// Teachers only see Study Guides and Accounts (read-only create/deactivate)
 const TEACHER_NAV_ITEMS = [
   { label: 'Study Guides',  to: '/admin/studyguides',  icon: BookOpen },
-  { label: 'Students',      to: '/admin/students',     icon: Users },
+  { label: 'Accounts',      to: '/admin/students',     icon: Users },
 ]
 
 export default function AdminLayout() {

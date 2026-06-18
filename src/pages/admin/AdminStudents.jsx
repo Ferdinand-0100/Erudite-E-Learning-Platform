@@ -92,6 +92,7 @@ export default function AdminStudents() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('student') // 'student' | 'teacher'
   const [form, setForm] = useState(draft?.form ?? emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [page, setPage] = useState(0)
@@ -282,7 +283,7 @@ export default function AdminStudents() {
   }
 
   const filtered = filterStudents(
-    students.filter(s => s.role === 'student' || s.role === 'teacher' || s.role === null || s.role === undefined),
+    students.filter(s => s.role === roleFilter),
     search,
   )
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -293,9 +294,15 @@ export default function AdminStudents() {
     setPage(0)
   }
 
+  function handleRoleFilterChange(role) {
+    setRoleFilter(role)
+    setSearch('')
+    setPage(0)
+  }
+
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 960 }}>
-      <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Students &amp; Teachers</h1>
+      <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Accounts</h1>
 
       {error && (
         <div style={{
@@ -407,6 +414,47 @@ export default function AdminStudents() {
       </form>
       )} {/* end !isTeacher */}
 
+      {/* Role filter toggle */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-3)' }}>
+        {['student', 'teacher'].map(r => {
+          const count = students.filter(s => s.role === r).length
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => handleRoleFilterChange(r)}
+              style={{
+                padding: '6px 18px',
+                border: '2px solid var(--color-border)',
+                borderRadius: 'var(--radius-wobbly-sm)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                background: roleFilter === r ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: roleFilter === r ? '#fff' : 'var(--color-text-2)',
+                boxShadow: roleFilter === r ? 'var(--shadow-hover)' : 'none',
+                transform: roleFilter === r ? 'translate(2px, 2px)' : 'none',
+                transition: 'all var(--transition-base)',
+              }}
+            >
+              {r === 'student' ? 'Students' : 'Teachers'}
+              <span style={{
+                marginLeft: 8,
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: 999,
+                background: roleFilter === r ? 'rgba(255,255,255,0.25)' : 'var(--color-muted)',
+                color: roleFilter === r ? '#fff' : 'var(--color-text-3)',
+              }}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* Search */}
       <div style={{ marginBottom: 'var(--space-4)' }}>
         <input
@@ -422,7 +470,7 @@ export default function AdminStudents() {
       {loading ? (
         <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading…</p>
       ) : filtered.length === 0 ? (
-        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No students found.</p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No {roleFilter === 'teacher' ? 'teachers' : 'students'} found.</p>
       ) : (
         <>
           <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'hidden', boxShadow: 'var(--shadow-card)', marginBottom: 'var(--space-4)' }}>
@@ -452,7 +500,9 @@ export default function AdminStudents() {
                     {new Date(s.created_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button style={btnSecondary} onClick={() => handleOpenManage(s)}>Enrollments</button>
+                    {s.role === 'student' && (
+                      <button style={btnSecondary} onClick={() => handleOpenManage(s)}>Enrollments</button>
+                    )}
                     {!isTeacher && (
                       <>
                         <button style={btnWarning} onClick={() => { setResetStudent(s); setNewPassword(''); setResetError(null); setResetSuccess(false) }}>Reset PW</button>
