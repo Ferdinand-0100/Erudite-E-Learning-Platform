@@ -45,13 +45,15 @@ const COURSES = Object.entries(COURSE_CONFIG).map(([key, cfg]) => {
     label: cfg.label,
     icon: cfg.icon,
     desc: subclassLabels,
-    defaultPath: `/${key}/${defaultSub}/${defaultLevel}/videos`,
+    defaultSub,
+    defaultLevel,
   }
 })
 
 export default function Home() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { enrollments, loading: enrollmentLoading } = useEnrollment()
+  const isTeacher = profile?.role === 'teacher'
   const navigate = useNavigate()
   const [hoveredCard, setHoveredCard] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -59,15 +61,17 @@ export default function Home() {
   const [displayProgress, setDisplayProgress] = useState({})
   const [activity, setActivity] = useState([])
 
-  const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student'
+  const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || (isTeacher ? 'Teacher' : 'Student')
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const enrolledCourseCount = enrollmentLoading
     ? null
-    : Object.keys(COURSE_CONFIG).filter(courseKey =>
-        enrollments.some(k => k.startsWith(`${courseKey}_`))
-      ).length
+    : isTeacher
+      ? Object.keys(COURSE_CONFIG).length  // teachers see all courses
+      : Object.keys(COURSE_CONFIG).filter(courseKey =>
+          enrollments.some(k => k.startsWith(`${courseKey}_`))
+        ).length
 
   useEffect(() => {
     if (!user?.id) return
@@ -130,7 +134,7 @@ export default function Home() {
           COURSES.map(c => {
             const pct = displayProgress[c.key] ?? 0
             const rawPct = progressMap[c.key] ?? 0
-            const isActive = enrollmentLoading || enrollments.some(k => k.startsWith(`${c.key}_`.toLowerCase()))
+            const isActive = isTeacher || enrollmentLoading || enrollments.some(k => k.startsWith(`${c.key}_`.toLowerCase()))
             const isHovered = hoveredCard === c.key && isActive
             return (
               <div
@@ -140,7 +144,11 @@ export default function Home() {
                   ...(isHovered ? styles.courseCardHover : {}),
                   ...(!isActive ? styles.courseCardInactive : {}),
                 }}
-                onClick={() => isActive && navigate(c.defaultPath)}
+                onClick={() => {
+                  if (!isActive) return
+                  const defaultTab = isTeacher ? 'audio' : 'videos'
+                  navigate(`/${c.key}/${c.defaultSub}/${c.defaultLevel}/${defaultTab}`)
+                }}
                 onMouseEnter={() => isActive && setHoveredCard(c.key)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
@@ -153,9 +161,11 @@ export default function Home() {
                   <div style={{ ...styles.progressFill, width: `${pct}%` }} />
                 </div>
                 <div style={styles.progressLabel}>
-                  {!enrollmentLoading && !isActive
-                    ? 'Not enrolled'
-                    : `${rawPct}% complete`}
+                  {isTeacher
+                    ? 'Click to browse'
+                    : !enrollmentLoading && !isActive
+                      ? 'Not enrolled'
+                      : `${rawPct}% complete`}
                 </div>
               </div>
             )

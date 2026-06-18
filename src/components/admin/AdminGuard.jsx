@@ -16,7 +16,7 @@ export default function AdminGuard({ children }) {
     return <Navigate to="/login" replace />
   }
 
-  if (profile?.role !== 'admin') {
+  if (profile?.role !== 'admin' && profile?.role !== 'teacher') {
     return <Navigate to="/" replace />
   }
 

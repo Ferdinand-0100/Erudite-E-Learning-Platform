@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { filterStudents } from '../../lib/adminValidators'
 import EnrollmentPicker from '../../components/admin/EnrollmentPicker'
 import { fetchEnrollments, assignEnrollment, removeEnrollment } from '../../lib/enrollmentService'
+import { useAuth } from '../../lib/AuthContext'
 
 const PAGE_SIZE = 20
 
@@ -84,6 +85,8 @@ function clearDraft() {
 }
 
 export default function AdminStudents() {
+  const { profile } = useAuth()
+  const isTeacher = profile?.role === 'teacher'
   const draft = loadDraft()
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(false)
@@ -305,7 +308,8 @@ export default function AdminStudents() {
         </div>
       )}
 
-      {/* Create Student form */}
+      {/* Create Student form — admin only */}
+      {!isTeacher && (
       <form onSubmit={handleCreate} style={{
         background: 'var(--color-surface)',
         border: '2px solid var(--color-border)',
@@ -367,6 +371,7 @@ export default function AdminStudents() {
           </button>
         </div>
       </form>
+      )} {/* end !isTeacher */}
 
       {/* Search */}
       <div style={{ marginBottom: 'var(--space-4)' }}>
@@ -414,11 +419,15 @@ export default function AdminStudents() {
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <button style={btnSecondary} onClick={() => handleOpenManage(s)}>Enrollments</button>
-                    <button style={btnWarning} onClick={() => { setResetStudent(s); setNewPassword(''); setResetError(null); setResetSuccess(false) }}>Reset PW</button>
-                    {s.is_active ? (
-                      <button style={btnDanger} onClick={() => handleDeactivate(s)}>Deactivate</button>
-                    ) : (
-                      <button style={btnSecondary} onClick={() => handleReactivate(s)}>Reactivate</button>
+                    {!isTeacher && (
+                      <>
+                        <button style={btnWarning} onClick={() => { setResetStudent(s); setNewPassword(''); setResetError(null); setResetSuccess(false) }}>Reset PW</button>
+                        {s.is_active ? (
+                          <button style={btnDanger} onClick={() => handleDeactivate(s)}>Deactivate</button>
+                        ) : (
+                          <button style={btnSecondary} onClick={() => handleReactivate(s)}>Reactivate</button>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

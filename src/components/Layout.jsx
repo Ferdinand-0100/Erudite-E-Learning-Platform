@@ -10,6 +10,7 @@ export default function Layout() {
   const { user, signOut, profile } = useAuth()
   const { enrollments, loading: enrollmentLoading } = useEnrollment()
   const isAdmin = profile?.role === 'admin'
+  const isTeacher = profile?.role === 'teacher'
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -109,12 +110,12 @@ export default function Layout() {
                           <div
                             className={`${styles.subItem} ${subclassActive ? styles.subActive : ''}`}
                             onClick={() => {
-                              const enrolled = isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase()))
+                              const enrolled = isAdmin || isTeacher || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase()))
                               if (!enrolled) return
                               // Navigate to the first enrolled level, not just the default
                               const subclassCfg = COURSE_CONFIG[courseKey]?.subclasses[subclassKey]
                               const firstEnrolledLevel = subclassCfg?.levels.find(l =>
-                                isAdmin || enrollmentLoading || enrollments.includes(`${courseKey}_${subclassKey}_${l.key}`.toLowerCase())
+                                isAdmin || isTeacher || enrollmentLoading || enrollments.includes(`${courseKey}_${subclassKey}_${l.key}`.toLowerCase())
                               )
                               const path = firstEnrolledLevel
                                 ? `/${courseKey}/${subclassKey}/${firstEnrolledLevel.key}/videos`
@@ -123,8 +124,8 @@ export default function Layout() {
                               setIsSidebarOpen(false)
                             }}
                             style={{
-                              cursor: isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase())) ? 'pointer' : 'default',
-                              opacity: !isAdmin && !enrollmentLoading && !enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase())) ? 0.4 : 1,
+                              cursor: isAdmin || isTeacher || enrollmentLoading || enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase())) ? 'pointer' : 'default',
+                              opacity: !isAdmin && !isTeacher && !enrollmentLoading && !enrollments.some(k => k.startsWith(`${courseKey}_${subclassKey}_`.toLowerCase())) ? 0.4 : 1,
                             }}
                           >
                             {subclass.label}
@@ -155,19 +156,33 @@ export default function Layout() {
 
                                     {levelActive && (
                                       <div>
-                                        {/* Level 4 — Tab links */}
-                                        {['videos', 'materials', 'quiz', 'essay'].map(tab => (
-                                          <NavLink
-                                            key={tab}
-                                            to={`/${courseKey}/${subclassKey}/${level.key}/${tab}`}
-                                            className={({ isActive }) =>
-                                              `${styles.tabItem} ${isActive ? styles.subSubActive : ''}`
-                                            }
-                                            onClick={() => setIsSidebarOpen(false)}
-                                          >
-                                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                                          </NavLink>
-                                        ))}
+                                        {/* Level 4 — Tab links (teacher sees different tabs) */}
+                                        {isTeacher
+                                          ? ['audio', 'books', 'answerkeys'].map(tab => (
+                                            <NavLink
+                                              key={tab}
+                                              to={`/${courseKey}/${subclassKey}/${level.key}/${tab}`}
+                                              className={({ isActive }) =>
+                                                `${styles.tabItem} ${isActive ? styles.subSubActive : ''}`
+                                              }
+                                              onClick={() => setIsSidebarOpen(false)}
+                                            >
+                                              {tab === 'audio' ? 'Audio Files' : tab === 'books' ? 'Books' : 'Answer Keys'}
+                                            </NavLink>
+                                          ))
+                                          : ['videos', 'materials', 'quiz', 'essay'].map(tab => (
+                                            <NavLink
+                                              key={tab}
+                                              to={`/${courseKey}/${subclassKey}/${level.key}/${tab}`}
+                                              className={({ isActive }) =>
+                                                `${styles.tabItem} ${isActive ? styles.subSubActive : ''}`
+                                              }
+                                              onClick={() => setIsSidebarOpen(false)}
+                                            >
+                                              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                            </NavLink>
+                                          ))
+                                        }
                                       </div>
                                     )}
                                   </div>
@@ -204,16 +219,16 @@ export default function Layout() {
 
           <div className={styles.avatarInfo}>
             <div className={styles.avatarName}>{displayName}</div>
-            <div className={styles.avatarRole}>{profile?.role === 'admin' ? 'Admin' : 'Student'}</div>
+            <div className={styles.avatarRole}>{profile?.role === 'admin' ? 'Admin' : profile?.role === 'teacher' ? 'Teacher' : 'Student'}</div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-            {profile?.role === 'admin' && (
+            {(profile?.role === 'admin' || profile?.role === 'teacher') && (
               <button
                 className={styles.signOutBtn}
                 onClick={() => navigate('/admin')}
-                title="Admin panel"
-                aria-label="Go to admin panel"
+                title={profile?.role === 'teacher' ? 'Teacher panel' : 'Admin panel'}
+                aria-label={profile?.role === 'teacher' ? 'Go to teacher panel' : 'Go to admin panel'}
                 style={{ fontSize: '13px' }}
               >
                 <Settings size={13} aria-hidden />

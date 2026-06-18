@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   function resolveRole(profileData, email) {
-    if (profileData?.role) return profileData.role
+    if (profileData?.role && ['student', 'admin', 'teacher'].includes(profileData.role)) return profileData.role
     if (email?.endsWith('@admin.com')) return 'admin'
     return 'student'
   }

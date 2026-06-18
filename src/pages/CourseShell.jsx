@@ -1,5 +1,5 @@
 import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom'
-import { Lock, Video, FileText, HelpCircle, PenLine } from 'lucide-react'
+import { Lock, Video, FileText, HelpCircle, PenLine, Headphones, BookMarked, Key } from 'lucide-react'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
 import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
@@ -7,11 +7,17 @@ import CourseHeader from '../components/CourseHeader'
 import PageHeader from '../components/PageHeader'
 import Tabs from '../components/Tabs'
 
-const TABS = [
+const STUDENT_TABS = [
   { key: 'videos',    label: 'Tutorial videos',  icon: Video },
   { key: 'materials', label: 'Written materials', icon: FileText },
   { key: 'quiz',      label: 'Quiz system',       icon: HelpCircle },
   { key: 'essay',     label: 'Essay checker',     icon: PenLine },
+]
+
+const TEACHER_TABS = [
+  { key: 'audio',      label: 'Audio files',  icon: Headphones },
+  { key: 'books',      label: 'Books',        icon: BookMarked },
+  { key: 'answerkeys', label: 'Answer keys',  icon: Key },
 ]
 
 export default function CourseShell() {
@@ -20,6 +26,11 @@ export default function CourseShell() {
   const { profile } = useAuth()
   const { isEnrolled, enrollments, loading: enrollmentLoading } = useEnrollment()
   const isAdmin = profile?.role === 'admin'
+  const isTeacher = profile?.role === 'teacher'
+  // Admins and teachers bypass enrollment checks
+  const bypassEnrollment = isAdmin || isTeacher
+
+  const TABS = isTeacher ? TEACHER_TABS : STUDENT_TABS
 
   const courseConfig = COURSE_CONFIG[course]
   if (!courseConfig) return <Navigate to="/" replace />
@@ -36,15 +47,15 @@ export default function CourseShell() {
 
   // Enrollment guard — wait for loading before redirecting
   // Check if student is enrolled in ANY level of this subclass
-  const hasAnySubclassEnrollment = isAdmin || enrollmentLoading ||
+  const hasAnySubclassEnrollment = bypassEnrollment || enrollmentLoading ||
     subclassConfig.levels.some(l => isEnrolled(course, subclass, l.key))
 
-  if (!isAdmin && !enrollmentLoading && !hasAnySubclassEnrollment) {
+  if (!bypassEnrollment && !enrollmentLoading && !hasAnySubclassEnrollment) {
     return <Navigate to="/" replace />
   }
 
   // If enrolled in subclass but not this specific level, redirect to an enrolled level
-  if (!isAdmin && !enrollmentLoading && !isEnrolled(course, subclass, level)) {
+  if (!bypassEnrollment && !enrollmentLoading && !isEnrolled(course, subclass, level)) {
     const enrolledLevel = subclassConfig.levels.find(l => isEnrolled(course, subclass, l.key))
     if (enrolledLevel) {
       return <Navigate to={`/${course}/${subclass}/${enrolledLevel.key}/videos`} replace />
@@ -52,7 +63,7 @@ export default function CourseShell() {
     return <Navigate to="/" replace />
   }
 
-  if (!isAdmin && enrollmentLoading) {
+  if (!bypassEnrollment && enrollmentLoading) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--color-text-3)' }}>Loading…</div>
   }
 
@@ -70,7 +81,7 @@ export default function CourseShell() {
         />
         <div style={styles.pills}>
           {Object.entries(courseConfig.subclasses).map(([key, sub]) => {
-            const subEnrolled = isAdmin || enrollmentLoading || enrollments.some(k => k.startsWith(`${course}_${key}_`.toLowerCase()))
+            const subEnrolled = bypassEnrollment || enrollmentLoading || enrollments.some(k => k.startsWith(`${course}_${key}_`.toLowerCase()))
             return (
               <button
                 key={key}
@@ -85,7 +96,7 @@ export default function CourseShell() {
                   // Navigate to first enrolled level of this subclass
                   const subclassCfg = courseConfig.subclasses[key]
                   const firstEnrolledLevel = subclassCfg?.levels.find(l =>
-                    isAdmin || enrollmentLoading || enrollments.includes(`${course}_${key}_${l.key}`.toLowerCase())
+                    bypassEnrollment || enrollmentLoading || enrollments.includes(`${course}_${key}_${l.key}`.toLowerCase())
                   )
                   const path = firstEnrolledLevel
                     ? `/${course}/${key}/${firstEnrolledLevel.key}/videos`
@@ -103,7 +114,8 @@ export default function CourseShell() {
           levels={subclassConfig.levels}
           activeLevel={level}
           basePath={`/${course}/${subclass}`}
-          isAdmin={isAdmin}
+          bypassEnrollment={bypassEnrollment}
+          isTeacher={isTeacher}
           enrollmentLoading={enrollmentLoading}
           isEnrolled={(lvlKey) => isEnrolled(course, subclass, lvlKey)}
         />
@@ -119,12 +131,14 @@ export default function CourseShell() {
   )
 }
 
-function LevelSelectorWithEnrollment({ levels, activeLevel, basePath, isAdmin, enrollmentLoading, isEnrolled }) {
+function LevelSelectorWithEnrollment({ levels, activeLevel, basePath, bypassEnrollment, isTeacher, enrollmentLoading, isEnrolled }) {
   const navigate = useNavigate()
+  // Teachers default to 'audio' tab instead of 'videos'
+  const defaultTab = isTeacher ? 'audio' : 'videos'
   return (
     <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
       {levels.map(level => {
-        const enrolled = isAdmin || enrollmentLoading || isEnrolled(level.key)
+        const enrolled = bypassEnrollment || enrollmentLoading || isEnrolled(level.key)
         const isActive = activeLevel === level.key
         return (
           <button
@@ -150,7 +164,7 @@ function LevelSelectorWithEnrollment({ levels, activeLevel, basePath, isAdmin, e
             onClick={e => {
               e.currentTarget.blur()
               if (!enrolled) return
-              navigate(`${basePath}/${level.key}/videos`)
+              navigate(`${basePath}/${level.key}/${defaultTab}`)
             }}
           >
             {!enrolled && <Lock size={11} style={{ marginRight: '4px', opacity: 0.6 }} />}

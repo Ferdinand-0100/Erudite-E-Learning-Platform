@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Trash2, Video, FileText, HelpCircle, Search, PenLine } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Video, FileText, HelpCircle, Search, PenLine, Headphones, BookMarked, Key } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const inputStyle = { width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box', fontFamily: 'inherit' }
@@ -8,9 +8,44 @@ const btnPrimary = { padding: '8px 16px', background: 'var(--color-accent)', col
 const btnSecondary = { padding: '8px 16px', background: 'var(--color-surface)', color: 'var(--color-text-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }
 const btnDanger = { padding: '6px 10px', background: 'var(--color-surface)', color: 'var(--color-danger)', border: '2px solid var(--color-danger)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }
 
-const TYPE_ICONS = { video: Video, material: FileText, quiz_package: HelpCircle, essay_prompt: PenLine }
-const TYPE_LABELS = { video: 'Video', material: 'Material', quiz_package: 'Quiz Package', essay_prompt: 'Essay Prompt' }
-const TYPE_COLORS = { video: { bg: '#dbeafe', color: '#1e40af' }, material: { bg: '#dcfce7', color: '#166534' }, quiz_package: { bg: '#fef3c7', color: '#92400e' }, essay_prompt: { bg: '#ede9fe', color: '#6d28d9' } }
+const TYPE_ICONS = {
+  video: Video,
+  material: FileText,
+  quiz_package: HelpCircle,
+  essay_prompt: PenLine,
+  audio_file: Headphones,
+  book: BookMarked,
+  answer_key: Key,
+}
+const TYPE_LABELS = {
+  video: 'Video',
+  material: 'Material',
+  quiz_package: 'Quiz Package',
+  essay_prompt: 'Essay Prompt',
+  audio_file: 'Audio File',
+  book: 'Book',
+  answer_key: 'Answer Key',
+}
+const TYPE_COLORS = {
+  video:        { bg: '#dbeafe', color: '#1e40af' },
+  material:     { bg: '#dcfce7', color: '#166534' },
+  quiz_package: { bg: '#fef3c7', color: '#92400e' },
+  essay_prompt: { bg: '#ede9fe', color: '#6d28d9' },
+  audio_file:   { bg: '#e0f2fe', color: '#0369a1' },
+  book:         { bg: '#dbeafe', color: '#1e3a8a' },
+  answer_key:   { bg: '#fef3c7', color: '#78350f' },
+}
+
+// Maps item_type to Supabase table name
+const TYPE_TABLE = {
+  video:        'videos',
+  material:     'materials',
+  quiz_package: 'quiz_packages',
+  essay_prompt: 'essay_prompts',
+  audio_file:   'audio_files',
+  book:         'books',
+  answer_key:   'answer_keys',
+}
 
 export default function AdminStudyGuides() {
   const [guides, setGuides] = useState([])
@@ -53,7 +88,7 @@ export default function AdminStudyGuides() {
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name, email')
-      .neq('role', 'admin')
+      .eq('role', 'student')
       .order('full_name')
     setStudents(data || [])
   }
@@ -67,17 +102,9 @@ export default function AdminStudyGuides() {
       .order('sort_order')
     const resolved = await Promise.all((data || []).map(async item => {
       let detail = null
-      if (item.item_type === 'video') {
-        const { data: d } = await supabase.from('videos').select('title, course_key, is_private').eq('id', item.item_id).single()
-        detail = d
-      } else if (item.item_type === 'material') {
-        const { data: d } = await supabase.from('materials').select('title, course_key, is_private').eq('id', item.item_id).single()
-        detail = d
-      } else if (item.item_type === 'quiz_package') {
-        const { data: d } = await supabase.from('quiz_packages').select('title, course_key, is_private').eq('id', item.item_id).single()
-        detail = d
-      } else if (item.item_type === 'essay_prompt') {
-        const { data: d } = await supabase.from('essay_prompts').select('title, course_key, is_private').eq('id', item.item_id).single()
+      const table = TYPE_TABLE[item.item_type]
+      if (table) {
+        const { data: d } = await supabase.from(table).select('title, course_key, is_private').eq('id', item.item_id).single()
         detail = d
       }
       return { ...item, detail }
@@ -123,15 +150,17 @@ export default function AdminStudyGuides() {
   async function searchItems() {
     setPickerLoading(true)
     const isPrivate = pickerVisibility === 'private'
+    const table = TYPE_TABLE[pickerType]
     let query
-    if (pickerType === 'video')
-      query = supabase.from('videos').select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
-    else if (pickerType === 'material')
-      query = supabase.from('materials').select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
-    else if (pickerType === 'quiz_package')
-      query = supabase.from('quiz_packages').select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
-    else
-      query = supabase.from('essay_prompts').select('id, title, course_key, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    if (pickerType === 'audio_file') {
+      query = supabase.from(table).select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    } else if (pickerType === 'book' || pickerType === 'answer_key') {
+      query = supabase.from(table).select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    } else if (pickerType === 'essay_prompt') {
+      query = supabase.from(table).select('id, title, course_key, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    } else {
+      query = supabase.from(table).select('id, title, course_key, difficulty, is_private').eq('is_private', isPrivate).ilike('title', `%${pickerSearch}%`).limit(20)
+    }
     const { data, error: err } = await query
     if (err) console.error('[StudyGuides] picker search error:', err)
     setPickerResults(data || [])
@@ -195,7 +224,7 @@ export default function AdminStudyGuides() {
             </div>
             {/* Content type tabs */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-              {['video', 'material', 'quiz_package', 'essay_prompt'].map(type => {
+              {['video', 'material', 'quiz_package', 'essay_prompt', 'audio_file', 'book', 'answer_key'].map(type => {
                 const Icon = TYPE_ICONS[type]
                 return (
                   <button key={type} type="button" onClick={() => { setPickerType(type); setPickerSearch('') }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: pickerType === type ? 'var(--color-accent)' : 'var(--color-surface-2)', color: pickerType === type ? 'white' : 'var(--color-text-2)', fontFamily: 'inherit' }}>

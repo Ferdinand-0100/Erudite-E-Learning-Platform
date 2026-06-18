@@ -8,6 +8,7 @@ import CourseShell from './pages/CourseShell'
 import CoursePage from './pages/CoursePage'
 import StudyGuidePage from './pages/StudyGuidePage'
 import AdminGuard from './components/admin/AdminGuard'
+import AdminOnlyGuard from './components/admin/AdminOnlyGuard'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminVideos from './pages/admin/AdminVideos'
@@ -16,11 +17,15 @@ import AdminQuiz from './pages/admin/AdminQuiz'
 import AdminEssay from './pages/admin/AdminEssay'
 import AdminStudyGuides from './pages/admin/AdminStudyGuides'
 import AdminStudents from './pages/admin/AdminStudents'
+import AdminAudio from './pages/admin/AdminAudio'
+import AdminBooks from './pages/admin/AdminBooks'
+import AdminAnswerKeys from './pages/admin/AdminAnswerKeys'
 
 function ProtectedRoute({ children }) {
   const { user, loading, profile } = useAuth()
   if (loading || (user && profile === null)) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-3)' }}>Loading…</div>
   if (!user) return <Navigate to="/login" replace />
+  // Admins go to admin panel; teachers can access both sides so they stay on student view
   if (profile?.role === 'admin') return <Navigate to="/admin" replace />
   return children
 }
@@ -58,12 +63,15 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         <Route index element={<AdminDashboard />} />
-        <Route path="videos" element={<AdminVideos />} />
-        <Route path="materials" element={<AdminMaterials />} />
-        <Route path="quiz" element={<AdminQuiz />} />
-        <Route path="essay" element={<AdminEssay />} />
+        <Route path="videos"      element={<AdminOnlyGuard><AdminVideos /></AdminOnlyGuard>} />
+        <Route path="materials"   element={<AdminOnlyGuard><AdminMaterials /></AdminOnlyGuard>} />
+        <Route path="quiz"        element={<AdminOnlyGuard><AdminQuiz /></AdminOnlyGuard>} />
+        <Route path="essay"       element={<AdminOnlyGuard><AdminEssay /></AdminOnlyGuard>} />
+        <Route path="audio"       element={<AdminOnlyGuard><AdminAudio /></AdminOnlyGuard>} />
+        <Route path="books"       element={<AdminOnlyGuard><AdminBooks /></AdminOnlyGuard>} />
+        <Route path="answerkeys"  element={<AdminOnlyGuard><AdminAnswerKeys /></AdminOnlyGuard>} />
         <Route path="studyguides" element={<AdminStudyGuides />} />
-        <Route path="students" element={<AdminStudents />} />
+        <Route path="students"    element={<AdminStudents />} />
       </Route>
       <Route
         path="/"

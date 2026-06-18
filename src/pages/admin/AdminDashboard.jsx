@@ -1,17 +1,28 @@
 import { useEffect, useState } from 'react'
-import { Video, FileText, HelpCircle, Users, PenLine } from 'lucide-react'
+import { Video, FileText, HelpCircle, Users, PenLine, Headphones, BookMarked, Key } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../lib/AuthContext'
+import { Navigate } from 'react-router-dom'
 
-const stats = [
+const ADMIN_STATS = [
   { key: 'videos',         label: 'Total Videos',    icon: Video,      accent: '#ff4d4d' },
   { key: 'materials',      label: 'Materials',        icon: FileText,   accent: '#2d5da1' },
   { key: 'quiz_questions', label: 'Quiz Questions',   icon: HelpCircle, accent: '#d97706' },
   { key: 'essay_prompts',  label: 'Essay Prompts',    icon: PenLine,    accent: '#166534' },
+  { key: 'audio_files',    label: 'Audio Files',      icon: Headphones, accent: '#0369a1' },
+  { key: 'books',          label: 'Books',            icon: BookMarked, accent: '#1e3a8a' },
+  { key: 'answer_keys',    label: 'Answer Keys',      icon: Key,        accent: '#78350f' },
   { key: 'students',       label: 'Students',         icon: Users,      accent: '#7c3aed' },
 ]
 
 export default function AdminDashboard() {
-  const [counts, setCounts] = useState({ videos: 0, materials: 0, quiz_questions: 0, essay_prompts: 0, students: 0 })
+  const { profile } = useAuth()
+  const isTeacher = profile?.role === 'teacher'
+
+  // Teachers don't need a dashboard — redirect them to study guides
+  if (isTeacher) return <Navigate to="/admin/studyguides" replace />
+
+  const [counts, setCounts] = useState({ videos: 0, materials: 0, quiz_questions: 0, essay_prompts: 0, audio_files: 0, books: 0, answer_keys: 0, students: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -20,15 +31,18 @@ export default function AdminDashboard() {
       setLoading(true)
       setError(null)
       try {
-        const [videos, materials, quiz_questions, essay_prompts, students] = await Promise.all([
+        const [videos, materials, quiz_questions, essay_prompts, audio_files, books, answer_keys, students] = await Promise.all([
           supabase.from('videos').select('*', { count: 'exact', head: true }),
           supabase.from('materials').select('*', { count: 'exact', head: true }),
           supabase.from('quiz_questions').select('*', { count: 'exact', head: true }),
           supabase.from('essay_prompts').select('*', { count: 'exact', head: true }),
-          supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
+          supabase.from('audio_files').select('*', { count: 'exact', head: true }),
+          supabase.from('books').select('*', { count: 'exact', head: true }),
+          supabase.from('answer_keys').select('*', { count: 'exact', head: true }),
+          supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
         ])
 
-        const results = { videos, materials, quiz_questions, essay_prompts, students }
+        const results = { videos, materials, quiz_questions, essay_prompts, audio_files, books, answer_keys, students }
         for (const [, result] of Object.entries(results)) {
           if (result.error) {
             setError(result.error.message || 'Failed to load dashboard data')
@@ -42,6 +56,9 @@ export default function AdminDashboard() {
           materials:      materials.count       ?? 0,
           quiz_questions: quiz_questions.count  ?? 0,
           essay_prompts:  essay_prompts.count   ?? 0,
+          audio_files:    audio_files.count     ?? 0,
+          books:          books.count           ?? 0,
+          answer_keys:    answer_keys.count     ?? 0,
           students:       students.count        ?? 0,
         })
       } catch (err) {
@@ -79,13 +96,13 @@ export default function AdminDashboard() {
 
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 20 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="skeleton" style={{ height: 140 }} />
           ))}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 20 }}>
-          {stats.map(({ key, label, icon: Icon, accent }) => (
+          {ADMIN_STATS.map(({ key, label, icon: Icon, accent }) => (
             <div
               key={key}
               style={{
@@ -99,7 +116,6 @@ export default function AdminDashboard() {
                 gap: 12,
               }}
             >
-              {/* Icon badge */}
               <div style={{
                 width: 40,
                 height: 40,
@@ -114,7 +130,6 @@ export default function AdminDashboard() {
                 <Icon size={20} strokeWidth={2.5} />
               </div>
 
-              {/* Count */}
               <div style={{
                 fontFamily: 'var(--font-heading)',
                 fontSize: 40,
@@ -125,7 +140,6 @@ export default function AdminDashboard() {
                 {counts[key]}
               </div>
 
-              {/* Label */}
               <div style={{
                 fontSize: 13,
                 fontWeight: 600,
