@@ -65,7 +65,7 @@ const btnWarning = {
   cursor: 'pointer',
 }
 
-const emptyForm = { email: '', password: '', fullName: '' }
+const emptyForm = { email: '', password: '', fullName: '', role: 'student' }
 
 function loadDraft() {
   try {
@@ -155,20 +155,23 @@ export default function AdminStudents() {
       setError(fnErr?.message || data?.error || JSON.stringify(fnErr))
     } else {
       if (data?.userId) {
-        // Ensure the profiles row exists with role: 'student'
+        // Set the correct role (student or teacher)
         await supabase.from('profiles').upsert({
           id: data.userId,
           email: form.email,
           full_name: form.fullName || '',
-          role: 'student',
+          role: form.role,
           is_active: true,
         }, { onConflict: 'id' })
 
-        for (const key of enrollmentKeys) {
-          try {
-            await assignEnrollment(supabase, data.userId, key)
-          } catch (err) {
-            setError(`Account created but failed to assign enrollment "${key}": ${err.message}`)
+        // Only enroll if role is student
+        if (form.role === 'student') {
+          for (const key of enrollmentKeys) {
+            try {
+              await assignEnrollment(supabase, data.userId, key)
+            } catch (err) {
+              setError(`Account created but failed to assign enrollment "${key}": ${err.message}`)
+            }
           }
         }
       }
@@ -181,7 +184,7 @@ export default function AdminStudents() {
   }
 
   async function handleDeactivate(student) {
-    if (!window.confirm('Deactivate this student?')) return
+    if (!window.confirm(`Deactivate this ${student.role || 'user'}?`)) return
     const { error: err } = await supabase
       .from('profiles')
       .update({ is_active: false })
@@ -191,7 +194,7 @@ export default function AdminStudents() {
   }
 
   async function handleReactivate(student) {
-    if (!window.confirm('Reactivate this student?')) return
+    if (!window.confirm(`Reactivate this ${student.role || 'user'}?`)) return
     const { error: err } = await supabase
       .from('profiles')
       .update({ is_active: true })
@@ -279,7 +282,7 @@ export default function AdminStudents() {
   }
 
   const filtered = filterStudents(
-    students.filter(s => s.role === 'student' || s.role === null || s.role === undefined),
+    students.filter(s => s.role === 'student' || s.role === 'teacher' || s.role === null || s.role === undefined),
     search,
   )
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -292,7 +295,7 @@ export default function AdminStudents() {
 
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 960 }}>
-      <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Students</h1>
+      <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Students &amp; Teachers</h1>
 
       {error && (
         <div style={{
@@ -320,7 +323,7 @@ export default function AdminStudents() {
         gap: 'var(--space-3)',
         boxShadow: 'var(--shadow-card)',
       }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Create Student</h2>
+        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Create Account</h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
           <div>
@@ -332,7 +335,7 @@ export default function AdminStudents() {
               value={form.email}
               onChange={handleField}
               required
-              placeholder="student@example.com"
+              placeholder="user@example.com"
             />
           </div>
           <div>
@@ -360,14 +363,45 @@ export default function AdminStudents() {
           </div>
         </div>
 
+        {/* Role selector */}
         <div>
-          <label style={labelStyle}>Enrollments</label>
-          <EnrollmentPicker selectedKeys={enrollmentKeys} onChange={handleEnrollmentChange} />
+          <label style={labelStyle}>Role *</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['student', 'teacher'].map(r => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setForm(f => { const next = { ...f, role: r }; saveDraft(next, enrollmentKeys); return next })}
+                style={{
+                  padding: '6px 20px',
+                  border: '2px solid var(--color-border)',
+                  borderRadius: 'var(--radius-wobbly-sm)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  background: form.role === r ? (r === 'teacher' ? 'var(--color-secondary)' : 'var(--color-accent)') : 'var(--color-surface)',
+                  color: form.role === r ? '#fff' : 'var(--color-text-2)',
+                  transition: 'all var(--transition-base)',
+                }}
+              >
+                {r.charAt(0).toUpperCase() + r.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Enrollments — only for students */}
+        {form.role === 'student' && (
+          <div>
+            <label style={labelStyle}>Enrollments</label>
+            <EnrollmentPicker selectedKeys={enrollmentKeys} onChange={handleEnrollmentChange} />
+          </div>
+        )}
 
         <div>
           <button type="submit" style={btnPrimary} disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create Student'}
+            {submitting ? 'Creating…' : `Create ${form.role === 'teacher' ? 'Teacher' : 'Student'}`}
           </button>
         </div>
       </form>
@@ -635,7 +669,8 @@ export default function AdminStudents() {
 
 function RoleBadge({ role }) {
   const colors = {
-    admin: { background: '#ede9fe', color: '#6d28d9' },
+    admin:   { background: '#ede9fe', color: '#6d28d9' },
+    teacher: { background: '#fef3c7', color: '#92400e' },
     student: { background: '#dbeafe', color: '#1d4ed8' },
   }
   const style = colors[role] || { background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }

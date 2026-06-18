@@ -19,7 +19,7 @@ const firstKey = (() => {
 
 const BOOKS_BUCKET = 'books'
 
-const emptyForm = { title: '', difficulty: 'Beginner', tags: [], is_private: false, week_number: 1 }
+const emptyForm = { title: '', difficulty: 'Beginner', tags: [], week_number: 1 }
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -49,9 +49,8 @@ export default function AdminBooks() {
   const [editingId, setEditingId, clearEditingId] = useAppState('admin-books-editing-id', null)
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [viewMode, setViewMode] = useAppState('admin-books-view-mode', 'public')
 
-  useEffect(() => { fetchBooks() }, [courseKey, viewMode])
+  useEffect(() => { fetchBooks() }, [courseKey])
 
   useEffect(() => {
     supabase.from('books').select('tags').then(({ data }) => {
@@ -63,9 +62,12 @@ export default function AdminBooks() {
   async function fetchBooks() {
     setLoading(true)
     setError(null)
-    let query = supabase.from('books').select('*').eq('is_private', viewMode === 'private').order('sort_order').order('created_at', { ascending: false })
-    if (viewMode === 'public') query = query.eq('course_key', courseKey)
-    const { data, error: err } = await query
+    const { data, error: err } = await supabase
+      .from('books')
+      .select('*')
+      .eq('course_key', courseKey)
+      .order('sort_order')
+      .order('created_at', { ascending: false })
     if (err) setError(err.message)
     else setBooks(data || [])
     setLoading(false)
@@ -79,7 +81,7 @@ export default function AdminBooks() {
 
   function startEdit(book) {
     setEditingId(book.id)
-    setForm({ title: book.title, difficulty: book.difficulty || 'Beginner', tags: book.tags || [], is_private: book.is_private ?? false, week_number: book.week_number ?? 1 })
+    setForm({ title: book.title, difficulty: book.difficulty || 'Beginner', tags: book.tags || [], week_number: book.week_number ?? 1 })
     setError(null)
   }
 
@@ -95,9 +97,8 @@ export default function AdminBooks() {
         title: form.title,
         difficulty: form.difficulty,
         tags: form.tags || [],
-        is_private: form.is_private,
-        course_key: form.is_private ? null : courseKey,
-        ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}),
+        course_key: courseKey,
+        week_number: Math.max(1, parseInt(form.week_number) || 1),
       }).eq('id', editingId)
       if (err) setError(err.message)
       else { clearForm(); clearEditingId(); await fetchBooks() }
@@ -110,8 +111,7 @@ export default function AdminBooks() {
     setSubmitting(true)
 
     const file = form.file
-    const prefix = form.is_private ? 'private' : courseKey
-    const path = `${prefix}/${Date.now()}_${file.name}`
+    const path = `${courseKey}/${Date.now()}_${file.name}`
 
     const { error: uploadErr } = await supabase.storage.from(BOOKS_BUCKET).upload(path, file, { upsert: true })
     if (uploadErr) { setError(uploadErr.message); setUploading(false); setSubmitting(false); return }
@@ -119,15 +119,14 @@ export default function AdminBooks() {
     const { data: urlData } = supabase.storage.from(BOOKS_BUCKET).getPublicUrl(path)
 
     const { error: insertErr } = await supabase.from('books').insert({
-      course_key: form.is_private ? null : courseKey,
-      is_private: form.is_private,
+      course_key: courseKey,
       title: form.title,
       file_url: urlData.publicUrl,
       file_size_label: formatSize(file.size),
       difficulty: form.difficulty,
       tags: form.tags || [],
       sort_order: books.length,
-      ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}),
+      week_number: Math.max(1, parseInt(form.week_number) || 1),
     })
 
     if (insertErr) setError(insertErr.message)
@@ -156,28 +155,18 @@ export default function AdminBooks() {
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Books</h1>
+      <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 'var(--space-4)' }}>
+        Teacher-only content — visible to teachers on the course page. Students never see these.
+      </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
-        {['public', 'private'].map(mode => (
-          <button key={mode} type="button" onClick={() => { setViewMode(mode); cancelEdit(); setForm(f => ({ ...f, is_private: mode === 'private' })) }} style={{ padding: '6px 18px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface)', color: viewMode === mode ? '#fff' : 'var(--color-text-2)', boxShadow: viewMode === mode ? 'var(--shadow-hover)' : 'none', transform: viewMode === mode ? 'translate(2px,2px)' : 'none', transition: 'all var(--transition-base)' }}>
-            {mode === 'public' ? 'Public' : 'Private'}
-          </button>
-        ))}
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <CourseKeySelector value={courseKey} onChange={k => { setCourseKey(k); cancelEdit() }} />
       </div>
-
-      {viewMode === 'public' && (
-        <div style={{ marginBottom: 'var(--space-6)' }}><CourseKeySelector value={courseKey} onChange={setCourseKey} /></div>
-      )}
-      {viewMode === 'private' && (
-        <div style={{ marginBottom: 'var(--space-4)', padding: '10px 14px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)' }}>
-          Private books are not tied to a course. They can only be accessed through assigned Study Guides.
-        </div>
-      )}
 
       {error && <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)', fontSize: '14px' }}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Book' : `Add ${viewMode === 'private' ? 'Private' : 'Public'} Book`}</h2>
+        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Book' : 'Add Book'}</h2>
 
         <div>
           <label style={labelStyle}>Title *</label>
@@ -191,21 +180,20 @@ export default function AdminBooks() {
           </div>
         )}
 
-        <div>
-          <label style={labelStyle}>Difficulty</label>
-          <select style={inputStyle} name="difficulty" value={form.difficulty} onChange={handleField}>
-            <option>Beginner</option>
-            <option>Intermediate</option>
-            <option>Advanced</option>
-          </select>
-        </div>
-
-        {viewMode === 'public' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
+          <div>
+            <label style={labelStyle}>Difficulty</label>
+            <select style={inputStyle} name="difficulty" value={form.difficulty} onChange={handleField}>
+              <option>Beginner</option>
+              <option>Intermediate</option>
+              <option>Advanced</option>
+            </select>
+          </div>
           <div>
             <label style={labelStyle}>Week</label>
             <input style={inputStyle} type="number" min={1} name="week_number" value={form.week_number ?? 1} onChange={handleField} />
           </div>
-        )}
+        </div>
 
         <div>
           <label style={labelStyle}>Tags</label>
@@ -221,7 +209,7 @@ export default function AdminBooks() {
       {loading ? (
         <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading…</p>
       ) : books.length === 0 ? (
-        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No {viewMode} books{viewMode === 'public' ? ' for this course key' : ''}.</p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No books for this course key.</p>
       ) : (
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
@@ -231,7 +219,7 @@ export default function AdminBooks() {
                   <th style={{ padding: '8px 6px', width: 28 }} />
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Difficulty</th>
-                  {viewMode === 'public' && <th style={{ padding: '8px 10px', fontWeight: 600 }}>Week</th>}
+                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Week</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
                   <th style={{ padding: '8px 10px' }} />
                 </tr>
@@ -242,7 +230,7 @@ export default function AdminBooks() {
                     <SortableRow key={b.id} id={b.id}>
                       <td style={{ padding: '8px 10px', fontWeight: 500 }}>{b.title}</td>
                       <td style={{ padding: '8px 10px' }}>{b.difficulty}</td>
-                      {viewMode === 'public' && <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--color-secondary)' }}>{b.week_number ?? 1}</td>}
+                      <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--color-secondary)' }}>{b.week_number ?? 1}</td>
                       <td style={{ padding: '8px 10px' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {(b.tags || []).map(t => (
@@ -267,8 +255,7 @@ export default function AdminBooks() {
                   <tbody>
                     <SortableRow id={activeItem.id} isOverlay>
                       <td style={{ padding: '8px 10px', fontWeight: 500 }}>{activeItem.title}</td>
-                      <td style={{ padding: '8px 10px' }} />
-                      <td style={{ padding: '8px 10px' }} />
+                      <td style={{ padding: '8px 10px' }} /><td style={{ padding: '8px 10px' }} /><td style={{ padding: '8px 10px' }} />
                     </SortableRow>
                   </tbody>
                 </table>

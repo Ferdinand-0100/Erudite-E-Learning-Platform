@@ -19,7 +19,7 @@ const firstKey = (() => {
 
 const AUDIO_BUCKET = 'audio-files'
 
-const emptyForm = { title: '', duration_label: '', difficulty: 'Beginner', tags: [], is_private: false, week_number: 1 }
+const emptyForm = { title: '', duration_label: '', difficulty: 'Beginner', tags: [], week_number: 1 }
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -49,9 +49,8 @@ export default function AdminAudio() {
   const [editingId, setEditingId, clearEditingId] = useAppState('admin-audio-editing-id', null)
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [viewMode, setViewMode] = useAppState('admin-audio-view-mode', 'public')
 
-  useEffect(() => { fetchAudio() }, [courseKey, viewMode])
+  useEffect(() => { fetchAudio() }, [courseKey])
 
   useEffect(() => {
     supabase.from('audio_files').select('tags').then(({ data }) => {
@@ -63,9 +62,12 @@ export default function AdminAudio() {
   async function fetchAudio() {
     setLoading(true)
     setError(null)
-    let query = supabase.from('audio_files').select('*').eq('is_private', viewMode === 'private').order('sort_order').order('created_at', { ascending: false })
-    if (viewMode === 'public') query = query.eq('course_key', courseKey)
-    const { data, error: err } = await query
+    const { data, error: err } = await supabase
+      .from('audio_files')
+      .select('*')
+      .eq('course_key', courseKey)
+      .order('sort_order')
+      .order('created_at', { ascending: false })
     if (err) setError(err.message)
     else setAudioFiles(data || [])
     setLoading(false)
@@ -79,7 +81,7 @@ export default function AdminAudio() {
 
   function startEdit(audio) {
     setEditingId(audio.id)
-    setForm({ title: audio.title, duration_label: audio.duration_label || '', difficulty: audio.difficulty || 'Beginner', tags: audio.tags || [], is_private: audio.is_private ?? false, week_number: audio.week_number ?? 1 })
+    setForm({ title: audio.title, duration_label: audio.duration_label || '', difficulty: audio.difficulty || 'Beginner', tags: audio.tags || [], week_number: audio.week_number ?? 1 })
     setError(null)
   }
 
@@ -96,9 +98,8 @@ export default function AdminAudio() {
         duration_label: form.duration_label || null,
         difficulty: form.difficulty,
         tags: form.tags || [],
-        is_private: form.is_private,
-        course_key: form.is_private ? null : courseKey,
-        ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}),
+        course_key: courseKey,
+        week_number: Math.max(1, parseInt(form.week_number) || 1),
       }).eq('id', editingId)
       if (err) setError(err.message)
       else { clearForm(); clearEditingId(); await fetchAudio() }
@@ -106,14 +107,12 @@ export default function AdminAudio() {
       return
     }
 
-    // New upload
     if (!form.file) { setError('Please select an audio file.'); return }
     setUploading(true)
     setSubmitting(true)
 
     const file = form.file
-    const prefix = form.is_private ? 'private' : courseKey
-    const path = `${prefix}/${Date.now()}_${file.name}`
+    const path = `${courseKey}/${Date.now()}_${file.name}`
 
     const { error: uploadErr } = await supabase.storage.from(AUDIO_BUCKET).upload(path, file, { upsert: true })
     if (uploadErr) { setError(uploadErr.message); setUploading(false); setSubmitting(false); return }
@@ -121,15 +120,14 @@ export default function AdminAudio() {
     const { data: urlData } = supabase.storage.from(AUDIO_BUCKET).getPublicUrl(path)
 
     const { error: insertErr } = await supabase.from('audio_files').insert({
-      course_key: form.is_private ? null : courseKey,
-      is_private: form.is_private,
+      course_key: courseKey,
       title: form.title,
       file_url: urlData.publicUrl,
       duration_label: form.duration_label || null,
       difficulty: form.difficulty,
       tags: form.tags || [],
       sort_order: audioFiles.length,
-      ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}),
+      week_number: Math.max(1, parseInt(form.week_number) || 1),
     })
 
     if (insertErr) setError(insertErr.message)
@@ -158,29 +156,18 @@ export default function AdminAudio() {
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 900 }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Audio Files</h1>
+      <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 'var(--space-4)' }}>
+        Teacher-only content — visible to teachers on the course page. Students never see these.
+      </p>
 
-      {/* Public / Private switcher */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
-        {['public', 'private'].map(mode => (
-          <button key={mode} type="button" onClick={() => { setViewMode(mode); cancelEdit(); setForm(f => ({ ...f, is_private: mode === 'private' })) }} style={{ padding: '6px 18px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface)', color: viewMode === mode ? '#fff' : 'var(--color-text-2)', boxShadow: viewMode === mode ? 'var(--shadow-hover)' : 'none', transform: viewMode === mode ? 'translate(2px,2px)' : 'none', transition: 'all var(--transition-base)' }}>
-            {mode === 'public' ? 'Public' : 'Private'}
-          </button>
-        ))}
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <CourseKeySelector value={courseKey} onChange={k => { setCourseKey(k); cancelEdit() }} />
       </div>
-
-      {viewMode === 'public' && (
-        <div style={{ marginBottom: 'var(--space-6)' }}><CourseKeySelector value={courseKey} onChange={setCourseKey} /></div>
-      )}
-      {viewMode === 'private' && (
-        <div style={{ marginBottom: 'var(--space-4)', padding: '10px 14px', background: 'var(--color-surface-2)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: 13, color: 'var(--color-text-2)' }}>
-          Private audio files are not tied to a course. They can only be accessed through assigned Study Guides.
-        </div>
-      )}
 
       {error && <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)', fontSize: '14px' }}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)', boxShadow: 'var(--shadow-card)' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Audio File' : `Add ${viewMode === 'private' ? 'Private' : 'Public'} Audio File`}</h2>
+        <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{editingId ? 'Edit Audio File' : 'Add Audio File'}</h2>
 
         <div>
           <label style={labelStyle}>Title *</label>
@@ -194,7 +181,7 @@ export default function AdminAudio() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
           <div>
             <label style={labelStyle}>Duration label</label>
             <input style={inputStyle} name="duration_label" value={form.duration_label} onChange={handleField} placeholder="e.g. 8 min" />
@@ -207,14 +194,11 @@ export default function AdminAudio() {
               <option>Advanced</option>
             </select>
           </div>
-        </div>
-
-        {viewMode === 'public' && (
           <div>
             <label style={labelStyle}>Week</label>
             <input style={inputStyle} type="number" min={1} name="week_number" value={form.week_number ?? 1} onChange={handleField} />
           </div>
-        )}
+        </div>
 
         <div>
           <label style={labelStyle}>Tags</label>
@@ -230,7 +214,7 @@ export default function AdminAudio() {
       {loading ? (
         <p style={{ color: 'var(--color-text-2)', fontSize: '14px' }}>Loading…</p>
       ) : audioFiles.length === 0 ? (
-        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No {viewMode} audio files{viewMode === 'public' ? ' for this course key' : ''}.</p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: '14px' }}>No audio files for this course key.</p>
       ) : (
         <div style={{ background: 'var(--color-surface)', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', overflow: 'auto', boxShadow: 'var(--shadow-card)' }}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
@@ -240,7 +224,7 @@ export default function AdminAudio() {
                   <th style={{ padding: '8px 6px', width: 28 }} />
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Title</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Difficulty</th>
-                  {viewMode === 'public' && <th style={{ padding: '8px 10px', fontWeight: 600 }}>Week</th>}
+                  <th style={{ padding: '8px 10px', fontWeight: 600 }}>Week</th>
                   <th style={{ padding: '8px 10px', fontWeight: 600 }}>Tags</th>
                   <th style={{ padding: '8px 10px' }} />
                 </tr>
@@ -251,7 +235,7 @@ export default function AdminAudio() {
                     <SortableRow key={a.id} id={a.id}>
                       <td style={{ padding: '8px 10px', fontWeight: 500 }}>{a.title}</td>
                       <td style={{ padding: '8px 10px' }}>{a.difficulty}</td>
-                      {viewMode === 'public' && <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--color-secondary)' }}>{a.week_number ?? 1}</td>}
+                      <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--color-secondary)' }}>{a.week_number ?? 1}</td>
                       <td style={{ padding: '8px 10px' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {(a.tags || []).map(t => (
@@ -276,8 +260,7 @@ export default function AdminAudio() {
                   <tbody>
                     <SortableRow id={activeItem.id} isOverlay>
                       <td style={{ padding: '8px 10px', fontWeight: 500 }}>{activeItem.title}</td>
-                      <td style={{ padding: '8px 10px' }} />
-                      <td style={{ padding: '8px 10px' }} />
+                      <td style={{ padding: '8px 10px' }} /><td style={{ padding: '8px 10px' }} /><td style={{ padding: '8px 10px' }} />
                     </SortableRow>
                   </tbody>
                 </table>
