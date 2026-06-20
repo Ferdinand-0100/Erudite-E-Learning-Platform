@@ -116,6 +116,7 @@
 
   color: var(--color-text-2);
   cursor: pointer;
+  text-decoration: none;
 
   transition:
     background var(--transition-base),

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Home, ChevronRight, LogOut, Settings, BookOpen } from 'lucide-react'
+import { Home, ChevronRight, LogOut, Settings, BookOpen, Sparkles } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { useEnrollment } from '../lib/EnrollmentContext'
 import { COURSE_CONFIG, defaultPath, defaultSubclassPath } from '../lib/courseConfig'
@@ -199,19 +199,26 @@ export default function Layout() {
             )
           })}
 
-          {/* Extra section — only shown to students and admins, not teachers */}
+          {/* Extra section — AI Tool visible to all, Study Guides students/admins only */}
+          <div className={styles.sectionLabel} style={{ marginTop: 8 }}>Extra</div>
+          <a
+            href="https://eruditeenglishai.com"
+            target="_blank"
+            rel="noreferrer"
+            className={styles.navItem}
+          >
+            <Sparkles size={14} aria-hidden />
+            <span>Erudite AI Tool</span>
+          </a>
           {!isTeacher && (
-            <>
-              <div className={styles.sectionLabel} style={{ marginTop: 8 }}>Extra</div>
-              <NavLink
-                to="/extra"
-                className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <BookOpen size={14} aria-hidden />
-                <span>Study Guides</span>
-              </NavLink>
-            </>
+            <NavLink
+              to="/extra"
+              className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <BookOpen size={14} aria-hidden />
+              <span>Study Guides</span>
+            </NavLink>
           )}
 
         </nav>
