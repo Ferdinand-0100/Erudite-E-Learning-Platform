@@ -440,6 +440,179 @@ function TestimonialCard({ name, track, score, avatar, quote, rotate }) {
   )
 }
 
+// ── Gallery Section ────────────────────────────────────────────────────────────
+// Add or remove images here — captions are optional
+const GALLERY_IMAGES = [
+  { src: '/images/HeroBackground.jpeg', caption: 'Our community space' },
+  { src: '/images/Carousel0.jpeg',      caption: 'Storytelling competition' },
+  { src: '/images/Carousel1.jpeg',      caption: 'Competition in session' },
+  { src: '/images/Carousel2.jpeg',      caption: 'Judges' },
+  { src: '/images/Carousel3.jpeg',      caption: 'Registration' },
+  { src: '/images/Carousel4.jpeg',      caption: 'Erudite English Tournament Cup' },
+]
+
+function GallerySection() {
+  const [lightbox, setLightbox] = useState(null) // index of open image
+
+  return (
+    <>
+      <SectionCard>
+        <SectionTag rotate="-0.8deg" bg="#fde8f0">Gallery</SectionTag>
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(22px, 3.5vw, 34px)', fontWeight: 700, color: 'var(--color-text)', textAlign: 'center', lineHeight: 1.25, marginBottom: 8, marginTop: 8 }}>
+          Life at <span style={{ color: 'var(--color-accent)' }}>Erudite English.</span>
+        </h2>
+        <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--color-text-2)', marginBottom: 36, maxWidth: 480, margin: '0 auto 36px' }}>
+          A glimpse into our classes, students, and the environment where learning happens every day.
+        </p>
+
+        {/* Masonry-style grid — first image spans 2 rows to break the uniformity */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateRows: 'auto',
+          gap: 12,
+        }}>
+          {GALLERY_IMAGES.map((img, i) => (
+            <GalleryThumb
+              key={i}
+              img={img}
+              featured={i === 0}
+              onClick={() => setLightbox(i)}
+            />
+          ))}
+        </div>
+      </SectionCard>
+
+      {/* Lightbox */}
+      {lightbox !== null && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 2000,
+            background: 'rgba(10,10,10,0.88)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+            animation: 'backdropIn 0.18s ease',
+          }}
+          role="dialog" aria-modal="true" aria-label="Image preview"
+        >
+          {/* Prev / Next */}
+          {[
+            { label: '←', delta: -1, side: { left: 16 } },
+            { label: '→', delta:  1, side: { right: 16 } },
+          ].map(({ label, delta, side }) => (
+            <button
+              key={label}
+              onClick={e => { e.stopPropagation(); setLightbox((lightbox + delta + GALLERY_IMAGES.length) % GALLERY_IMAGES.length) }}
+              aria-label={delta === -1 ? 'Previous image' : 'Next image'}
+              style={{
+                position: 'fixed', top: '50%', ...side,
+                transform: 'translateY(-50%)',
+                width: 44, height: 44,
+                background: 'var(--color-surface)',
+                border: '2.5px solid var(--color-border)',
+                borderRadius: 'var(--radius-wobbly-sm)',
+                cursor: 'pointer', zIndex: 2001,
+                fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 700,
+                color: 'var(--color-text)',
+                boxShadow: 'var(--shadow-card)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >{label}</button>
+          ))}
+
+          {/* Image */}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: 860, width: '100%', animation: 'modalIn 0.2s cubic-bezier(0.34,1.56,0.64,1)' }}
+          >
+            <img
+              src={GALLERY_IMAGES[lightbox].src}
+              alt={GALLERY_IMAGES[lightbox].caption}
+              style={{
+                width: '100%', maxHeight: '80vh',
+                objectFit: 'contain',
+                border: '3px solid var(--color-border)',
+                borderRadius: 'var(--radius-wobbly)',
+                boxShadow: 'var(--shadow-elevated)',
+                display: 'block',
+              }}
+            />
+            {GALLERY_IMAGES[lightbox].caption && (
+              <div style={{
+                textAlign: 'center', marginTop: 12,
+                fontFamily: 'var(--font-body)', fontSize: 13,
+                color: 'rgba(255,255,255,0.7)',
+              }}>
+                {GALLERY_IMAGES[lightbox].caption}
+                <span style={{ marginLeft: 12, opacity: 0.45 }}>{lightbox + 1} / {GALLERY_IMAGES.length}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Close hint */}
+          <div style={{ position: 'fixed', top: 16, right: 20, fontFamily: 'var(--font-body)', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+            Click anywhere to close
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function GalleryThumb({ img, featured, onClick }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        gridColumn: featured ? 'span 2' : 'span 1',
+        gridRow:    featured ? 'span 2' : 'span 1',
+        position: 'relative',
+        overflow: 'hidden',
+        border: '2.5px solid var(--color-border)',
+        borderRadius: 'var(--radius-wobbly-sm)',
+        boxShadow: hovered ? 'var(--shadow-hover)' : '3px 3px 0 var(--color-border)',
+        cursor: 'pointer',
+        aspectRatio: featured ? 'auto' : '4/3',
+        minHeight: featured ? 320 : 'auto',
+        transform: hovered ? 'translate(-2px,-2px)' : 'none',
+        transition: 'transform var(--transition-base), box-shadow var(--transition-base)',
+      }}
+    >
+      <img
+        src={img.src}
+        alt={img.caption}
+        loading="lazy"
+        style={{
+          width: '100%', height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          transform: hovered ? 'scale(1.04)' : 'scale(1)',
+          transition: 'transform 0.4s ease',
+        }}
+      />
+      {/* Caption overlay on hover */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(to top, rgba(20,20,20,0.72) 0%, transparent 50%)',
+        opacity: hovered ? 1 : 0,
+        transition: 'opacity var(--transition-base)',
+        display: 'flex', alignItems: 'flex-end',
+        padding: '14px 14px',
+      }}>
+        <span style={{
+          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+          color: '#ffffff',
+        }}>{img.caption}</span>
+      </div>
+    </div>
+  )
+}
+
 // ── FAQ Section ────────────────────────────────────────────────────────────────
 const FAQS = [
   { q: 'Do I need to attend classes at a fixed time?', a: 'Most content — videos, quizzes, and study guides — is fully self-paced. Live sessions like speaking practice and Q&A are scheduled in advance, but recordings are available if you can\'t make it live.' },
@@ -726,24 +899,26 @@ export default function LoginPage() {
               position: 'relative',
             }}
           >
+            {/* Map embed — Place mode keeps the focus on our pin only */}
             <div
               style={{
                 width: '100%',
                 height: '100%',
                 overflow: 'hidden',
                 border: '3px solid var(--color-border)',
-                borderRadius: 'var(--radius-wobbly)',
+                borderRadius: 4,
                 boxShadow: 'var(--shadow-elevated)',
                 background: 'var(--color-surface)',
               }}
             >
               <iframe
                 title="Erudite English Location"
-                src="https://www.google.com/maps?q=Jl.+Suasa+No.3K,+Sei+Rengas+II,+Kec.+Medan+Area,+Kota+Medan,+Sumatera+Utara+20211,+Indonesia&output=embed"
+                src="https://maps.google.com/maps?q=Erudite+English+Jl.+Suasa+No.3K+Medan&t=m&z=17&output=embed&iwloc=near"
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
                 loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
               />
             </div>
 
@@ -753,27 +928,39 @@ export default function LoginPage() {
                 position: 'absolute',
                 left: 16,
                 bottom: 16,
-                background: 'var(--color-surface-2)',
+                background: 'var(--color-surface)',
                 border: '2px solid var(--color-border)',
                 borderRadius: 'var(--radius-wobbly-sm)',
-                padding: '12px 14px',
-                boxShadow: 'var(--shadow-card)',
-                maxWidth: 280,
+                padding: '10px 14px',
+                boxShadow: 'var(--shadow-elevated)',
+                maxWidth: 290,
                 zIndex: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
               }}
             >
-
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <img src="/images/Logo.png" alt="" style={{ width: 22, height: 22, objectFit: 'contain', border: '1.5px solid var(--color-border)', borderRadius: 4, padding: 2, flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>Erudite English</span>
+              </div>
               <a
                 href="https://maps.app.goo.gl/byKLErUfEH6ok9PK7"
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  display: 'inline-block',
-                  marginTop: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  marginTop: 2,
                   color: 'var(--color-accent)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 12,
                   fontWeight: 600,
                   textDecoration: 'none',
                 }}
+                onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
               >
                 Open in Google Maps →
               </a>
@@ -826,6 +1013,11 @@ export default function LoginPage() {
       {/* ── TESTIMONIALS ── */}
       <section style={sectionGap}>
         <TestimonialsSection />
+      </section>
+
+      {/* ── GALLERY ── */}
+      <section style={sectionGap}>
+        <GallerySection />
       </section>
 
       {/* ── FAQ ── */}
