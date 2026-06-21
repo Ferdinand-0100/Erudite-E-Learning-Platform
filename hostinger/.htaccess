@@ -1,0 +1,26 @@
+# Hostinger uploads directory .htaccess
+# Place this file in public_html/uploads/
+
+# Deny direct PHP execution in /files/ subdirectory (files are served statically)
+# PHP scripts (upload.php, delete.php) are only in this directory, not in /files/
+
+# Set UPLOAD_SECRET environment variable
+# Replace __REPLACE_WITH_YOUR_SECRET__ with your actual secret
+# SetEnv UPLOAD_SECRET your_actual_secret_here
+
+# Allow cross-origin access to uploaded files (needed for audio playback)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(pdf|mp3|wav|m4a|aac|ogg|epub|doc|docx|jpg|jpeg|png|webp|gif)$">
+        Header set Access-Control-Allow-Origin "https://eruditeenglish.com"
+        Header set Access-Control-Allow-Methods "GET"
+    </FilesMatch>
+</IfModule>
+
+# Prevent PHP execution inside /files/ — only static serving allowed there
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^files/.*\.php$ - [F,L]
+</IfModule>
+
+# Disable directory listing
+Options -Indexes

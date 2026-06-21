@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { supabase } from '../../lib/supabase'
+import { uploadFile, deleteFile, storagePathFromUrl } from '../../lib/hostingerStorage'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
 import TagInput from '../../components/admin/TagInput'
@@ -24,12 +25,6 @@ const emptyForm = { title: '', duration_label: '', difficulty: 'Beginner', tags:
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   return `${Math.round(bytes / 1024)} KB`
-}
-
-function storagePathFromUrl(url, bucket) {
-  const marker = `/object/public/${bucket}/`
-  const idx = url.indexOf(marker)
-  return idx >= 0 ? url.slice(idx + marker.length) : null
 }
 
 const inputStyle = { width: '100%', padding: '8px 10px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-wobbly-sm)', fontSize: '14px', background: 'var(--color-surface)', boxSizing: 'border-box' }
@@ -114,15 +109,13 @@ export default function AdminAudio() {
     const file = form.file
     const path = `${courseKey}/${Date.now()}_${file.name}`
 
-    const { error: uploadErr } = await supabase.storage.from(AUDIO_BUCKET).upload(path, file, { upsert: true })
-    if (uploadErr) { setError(uploadErr.message); setUploading(false); setSubmitting(false); return }
-
-    const { data: urlData } = supabase.storage.from(AUDIO_BUCKET).getPublicUrl(path)
+    const { publicUrl, error: uploadErr } = await uploadFile(AUDIO_BUCKET, path, file)
+    if (uploadErr) { setError(uploadErr); setUploading(false); setSubmitting(false); return }
 
     const { error: insertErr } = await supabase.from('audio_files').insert({
       course_key: courseKey,
       title: form.title,
-      file_url: urlData.publicUrl,
+      file_url: publicUrl,
       duration_label: form.duration_label || null,
       difficulty: form.difficulty,
       tags: form.tags || [],
@@ -140,7 +133,7 @@ export default function AdminAudio() {
   async function handleDelete(audio) {
     if (!window.confirm('Delete this audio file?')) return
     const storagePath = storagePathFromUrl(audio.file_url, AUDIO_BUCKET)
-    if (storagePath) await supabase.storage.from(AUDIO_BUCKET).remove([storagePath])
+    if (storagePath) await deleteFile(AUDIO_BUCKET, storagePath)
     const { error: err } = await supabase.from('audio_files').delete().eq('id', audio.id)
     if (err) setError(err.message)
     else await fetchAudio()

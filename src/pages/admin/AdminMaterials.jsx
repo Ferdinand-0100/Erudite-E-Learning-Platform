@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { supabase } from '../../lib/supabase'
+import { uploadFile, deleteFile, storagePathFromUrl } from '../../lib/hostingerStorage'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
 import TagInput from '../../components/admin/TagInput'
@@ -23,12 +24,6 @@ const emptyForm = { title: '', file: null, tags: [], difficulty: 'Beginner', is_
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   return `${Math.round(bytes / 1024)} KB`
-}
-
-function storagePathFromUrl(url) {
-  const marker = '/object/public/materials/'
-  const idx = url.indexOf(marker)
-  return idx >= 0 ? url.slice(idx + marker.length) : null
 }
 
 const inputStyle = {
@@ -181,19 +176,16 @@ export default function AdminMaterials() {
     const prefix = form.is_private ? 'private' : courseKey
     const path = `${prefix}/${file.name}`
 
-    const { error: uploadErr } = await supabase.storage
-      .from('materials')
-      .upload(path, file, { upsert: true })
+    const { publicUrl, error: uploadErr } = await uploadFile('materials', path, file)
 
     if (uploadErr) {
-      setError(uploadErr.message)
+      setError(uploadErr)
       setUploading(false)
       setSubmitting(false)
       return
     }
 
-    const { data: urlData } = supabase.storage.from('materials').getPublicUrl(path)
-    const fileUrl = urlData.publicUrl
+    const fileUrl = publicUrl
 
     const { error: insertErr } = await supabase.from('materials').insert({
       course_key: form.is_private ? null : courseKey,
@@ -223,14 +215,12 @@ export default function AdminMaterials() {
     if (!window.confirm('Delete this material?')) return
     setError(null)
 
-    const storagePath = storagePathFromUrl(material.file_url)
+    const storagePath = storagePathFromUrl(material.file_url, 'materials')
     if (storagePath) {
-      const { error: storageErr } = await supabase.storage
-        .from('materials')
-        .remove([storagePath])
+      const { error: storageErr } = await deleteFile('materials', storagePath)
       if (storageErr) {
         // Per design: show warning but still remove from UI
-        setError(`Warning: file not removed from storage — ${storageErr.message}`)
+        setError(`Warning: file not removed from storage — ${storageErr}`)
       }
     }
 

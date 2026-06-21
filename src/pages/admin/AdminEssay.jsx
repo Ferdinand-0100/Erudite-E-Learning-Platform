@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, ImagePlus, X } from 'lucide-react'
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { supabase } from '../../lib/supabase'
+import { uploadFile } from '../../lib/hostingerStorage'
 import { COURSE_CONFIG, buildCourseKey } from '../../lib/courseConfig'
 import CourseKeySelector from '../../components/admin/CourseKeySelector'
 import SortableRow from '../../components/admin/SortableRow'
@@ -133,19 +134,16 @@ export default function AdminEssay() {
     setSubmitting(true)
     setError(null)
 
-    // Upload image to Storage if a new file was selected
+    // Upload image to Hostinger if a new file was selected
     let imageUrl = existingImageUrl ?? null
     if (imageFile) {
       setUploadingImage(true)
       const ext = imageFile.name.split('.').pop()
-      const path = `essay-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadErr } = await supabase.storage
-        .from('essay-images')
-        .upload(path, imageFile, { upsert: false, contentType: imageFile.type })
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { publicUrl, error: uploadErr } = await uploadFile('essay-images', path, imageFile)
       setUploadingImage(false)
-      if (uploadErr) { setError(`Image upload failed: ${uploadErr.message}`); setSubmitting(false); return }
-      const { data: urlData } = supabase.storage.from('essay-images').getPublicUrl(path)
-      imageUrl = urlData.publicUrl
+      if (uploadErr) { setError(`Image upload failed: ${uploadErr}`); setSubmitting(false); return }
+      imageUrl = publicUrl
     }
 
     const payload = { course_key: form.is_private ? null : courseKey, is_private: form.is_private ?? false, ...form, title: form.title.trim(), prompt: form.prompt.trim(), image_url: imageUrl, ...(!form.is_private ? { week_number: Math.max(1, parseInt(form.week_number) || 1) } : {}), sort_order: editingId ? undefined : prompts.length }
