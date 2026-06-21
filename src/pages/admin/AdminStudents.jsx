@@ -226,11 +226,12 @@ export default function AdminStudents() {
     setManagingError(null)
     setManagingLoading(true)
     setManagingWeekSettings({})
-    // Fetch full enrollment rows including week fields
+    // Fetch full enrollment rows including week fields — active only
     const { data } = await supabase
       .from('enrollments')
       .select('course_key, course_start_date, week_override')
       .eq('student_id', student.id)
+      .eq('is_active', true)
     const rows = data || []
     setManagingKeys(rows.map(r => r.course_key))
     // Build week settings map
@@ -252,10 +253,19 @@ export default function AdminStudents() {
     try {
       for (const key of added) {
         await assignEnrollment(supabase, managingStudent.id, key)
-        // Initialise week settings for new enrollment with today's date
+        // Fetch the actual stored values (may be a reactivated row with preserved dates)
+        const { data: row } = await supabase
+          .from('enrollments')
+          .select('course_start_date, week_override')
+          .eq('student_id', managingStudent.id)
+          .eq('course_key', key)
+          .maybeSingle()
         setManagingWeekSettings(prev => ({
           ...prev,
-          [key]: { course_start_date: new Date().toISOString().slice(0, 10), week_override: '' },
+          [key]: {
+            course_start_date: row?.course_start_date ?? new Date().toISOString().slice(0, 10),
+            week_override: row?.week_override ?? '',
+          },
         }))
       }
       for (const key of removed) {

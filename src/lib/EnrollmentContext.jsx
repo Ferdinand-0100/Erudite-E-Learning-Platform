@@ -24,6 +24,7 @@ export function EnrollmentProvider({ children }) {
       .from('enrollments')
       .select('course_key, course_start_date, week_override')
       .eq('student_id', user.id)
+      .eq('is_active', true)
       .then(({ data }) => {
         const rows = data || []
         setEnrollments(rows.map(r => r.course_key.toLowerCase()))
